@@ -8,6 +8,8 @@ mod background;
 mod audio;
 mod ui;
 mod coins;
+mod powerups;
+mod weather;
 
 use macroquad::prelude::*;
 use constants::*;
@@ -19,7 +21,12 @@ use particles::ParticleSystem;
 use background::Background;
 use audio::AudioManager;
 use coins::CoinManager;
-use ui::{Difficulty, ScoreFlash, GameStats, draw_start_screen, draw_game_over, draw_hud, draw_speed_lines};
+use powerups::PowerUpManager;
+use weather::{WeatherSystem, WeatherType};
+use ui::{
+    Difficulty, ScoreFlash, GameStats, draw_start_screen, draw_game_over,
+    draw_hud, draw_speed_lines, draw_slowmo_vignette,
+};
 
 // ─── Game States ────────────────────────────────────────────────────────────
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -87,11 +94,12 @@ fn check_milestone(score: u32) -> Option<&'static str> {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let audio = AudioManager::new().await;
+    let mut audio = AudioManager::new().await;
     let bg = Background::new();
     let mut clouds = CloudManager::new();
     let mut ground = Ground::new();
     let mut particles = ParticleSystem::new();
+    let mut weather = WeatherSystem::new();
 
     let mut skin = BirdSkin::Classic;
     let mut bird = Bird::new_with_skin(skin);
@@ -99,6 +107,7 @@ async fn main() {
     let mut difficulty = Difficulty::Normal;
     let mut pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
     let mut coin_mgr = CoinManager::new();
+    let mut powerups = PowerUpManager::new();
     let mut score_flash = ScoreFlash::new();
     let mut stats = GameStats::load();
 
@@ -113,7 +122,7 @@ async fn main() {
     let mut screen_shake = 0.0f32;
     let mut score_flash_white = 0.0f32; // brief white flash on score
     let mut game_time = 0.0f32;
-    let mut last_pipe_count = 0usize; // track when new pipes spawn for coin generation
+    let mut last_pipe_count = 0usize; // track when new pipes spawn for coin & powerup generation
 
     loop {
         let raw_dt = get_frame_time();
@@ -126,11 +135,15 @@ async fn main() {
             show_fps = !show_fps;
         }
 
+        if is_key_pressed(KeyCode::M) {
+            audio.toggle_mute();
+        }
+
         if is_key_pressed(KeyCode::P) && state == GameState::Playing {
             paused = !paused;
         }
 
-        // Difficulty & skin changes on start screen
+        // Start screen options
         if state == GameState::Start {
             if is_key_pressed(KeyCode::D) {
                 difficulty = difficulty.next();
@@ -138,6 +151,9 @@ async fn main() {
             }
             if is_key_pressed(KeyCode::C) {
                 skin = skin.next();
+            }
+            if is_key_pressed(KeyCode::W) {
+                weather.toggle_weather();
             }
         }
 
@@ -149,6 +165,8 @@ async fn main() {
         match state {
             GameState::Start => {
                 clouds.update(dt);
+                weather.update(dt);
+
                 if tap {
                     state = GameState::Playing;
                     score = 0;
@@ -157,6 +175,7 @@ async fn main() {
                     bird = Bird::new_with_skin(skin);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
                     coin_mgr.reset();
+                    powerups.reset();
                     last_pipe_count = pipes.pipes.len();
                     bird.flap();
                     audio.play_flap();
@@ -165,15 +184,20 @@ async fn main() {
 
             GameState::Playing => {
                 if !paused {
+                    // Slow motion affects pipe and ground scroll speed
+                    let slowmo_factor = if powerups.is_slowmo_active() { 0.6 } else { 1.0 };
+                    let effective_dt = dt * slowmo_factor;
+
                     bird.update(dt);
                     particles.add_trail(bird.x + 5.0, bird.y + BIRD_HEIGHT / 2.0);
 
-                    let scored = pipes.update(dt, &mut score, bird.x, game_time);
+                    let scored = pipes.update(effective_dt, &mut score, bird.x, game_time);
 
-                    // Spawn coins when new pipes appear
+                    // Spawn coins & powerups when new pipes appear
                     if pipes.pipes.len() > last_pipe_count {
                         if let Some((px, top_h, bot_y)) = pipes.last_spawned_gap() {
                             coin_mgr.spawn_for_pipe(px, top_h, bot_y);
+                            powerups.spawn_for_pipe(px, top_h, bot_y);
                         }
                     }
                     last_pipe_count = pipes.pipes.len();
@@ -188,20 +212,47 @@ async fn main() {
                         if let Some(msg) = check_milestone(score) {
                             score_flash.trigger(msg);
                         }
+
+                        // Automatic subtle weather transition at score milestones
+                        if score == 20 && weather.current == WeatherType::Clear {
+                            weather.set_weather(WeatherType::Rain);
+                        } else if score == 40 && weather.current == WeatherType::Rain {
+                            weather.set_weather(WeatherType::Snow);
+                        } else if score == 60 && weather.current == WeatherType::Snow {
+                            weather.set_weather(WeatherType::Sakura);
+                        }
                     }
 
-                    // Update coins
-                    let pipe_speed = pipes.get_speed(score);
-                    let coins_got = coin_mgr.update(dt, pipe_speed, bird.x, bird.y);
+                    // Update powerups
+                    let pipe_speed = pipes.get_speed(score) * slowmo_factor;
+                    if let Some(pup) = powerups.update(raw_dt, pipe_speed, bird.x, bird.y) {
+                        audio.play_powerup();
+                        particles.add_powerup_burst(
+                            bird.x + BIRD_WIDTH / 2.0,
+                            bird.y + BIRD_HEIGHT / 2.0,
+                            pup.color(),
+                        );
+                        score_flash.trigger(pup.name());
+                    }
+
+                    // Update coins with magnet attraction
+                    let coins_got = coin_mgr.update(
+                        effective_dt,
+                        pipe_speed,
+                        bird.x,
+                        bird.y,
+                        powerups.is_magnet_active(),
+                    );
                     if coins_got > 0 {
                         coins_this_game += coins_got;
-                        score += coins_got * 2; // coins are worth 2 points each
+                        score += coins_got * 2; // coins are worth 2 bonus points
                         audio.play_score();
                         particles.add_sparkle(bird.x + BIRD_WIDTH / 2.0, bird.y - 10.0);
                     }
 
-                    ground.update(dt, pipe_speed);
-                    clouds.update(dt);
+                    ground.update(effective_dt, pipe_speed);
+                    clouds.update(effective_dt);
+                    weather.update(dt);
                     particles.update(raw_dt);
 
                     if tap {
@@ -209,22 +260,36 @@ async fn main() {
                         audio.play_flap();
                     }
 
-                    if check_collision(&bird, &pipes) {
-                        state = GameState::Dying;
-                        bird.start_death();
-                        screen_shake = 14.0;
-                        combo = 0;
-                        particles.add_explosion(
-                            bird.x + BIRD_WIDTH / 2.0,
-                            bird.y + BIRD_HEIGHT / 2.0,
-                        );
-                        audio.play_hit();
+                    // Collision checking
+                    if !powerups.is_invulnerable() && check_collision(&bird, &pipes) {
+                        // Check if shield can absorb collision
+                        if powerups.pop_shield() {
+                            audio.play_shield_break();
+                            particles.add_powerup_burst(
+                                bird.x + BIRD_WIDTH / 2.0,
+                                bird.y + BIRD_HEIGHT / 2.0,
+                                Color::from_rgba(64, 224, 255, 255),
+                            );
+                            screen_shake = 7.0;
+                            score_flash.trigger("SHIELD BROKEN!");
+                        } else {
+                            // Fatal hit
+                            state = GameState::Dying;
+                            bird.start_death();
+                            screen_shake = 14.0;
+                            combo = 0;
+                            particles.add_explosion(
+                                bird.x + BIRD_WIDTH / 2.0,
+                                bird.y + BIRD_HEIGHT / 2.0,
+                            );
+                            audio.play_hit();
 
-                        if score > best_score {
-                            best_score = score;
-                            save_high_score(best_score);
+                            if score > best_score {
+                                best_score = score;
+                                save_high_score(best_score);
+                            }
+                            stats.record_game(score, coins_this_game);
                         }
-                        stats.record_game(score, coins_this_game);
                     }
                 }
             }
@@ -232,6 +297,7 @@ async fn main() {
             GameState::Dying => {
                 // Bird tumbles and falls
                 bird.update_death(dt);
+                weather.update(dt);
                 particles.update(raw_dt);
 
                 if bird.death_done() {
@@ -240,6 +306,7 @@ async fn main() {
             }
 
             GameState::GameOver => {
+                weather.update(dt);
                 particles.update(raw_dt);
                 if is_key_pressed(KeyCode::Space)
                     || is_key_pressed(KeyCode::R)
@@ -252,6 +319,7 @@ async fn main() {
                     bird = Bird::new_with_skin(skin);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
                     coin_mgr.reset();
+                    powerups.reset();
                     last_pipe_count = pipes.pipes.len();
                     bird.flap();
                     audio.play_flap();
@@ -308,20 +376,37 @@ async fn main() {
 
         pipes.draw(game_time);
         coin_mgr.draw(game_time);
+        powerups.draw_items(game_time);
         ground.draw();
+        weather.draw();
         particles.draw();
 
         // Draw bird in all states except pure GameOver
         if state != GameState::GameOver {
-            bird.draw();
+            bird.draw_with_invuln(powerups.is_invulnerable(), game_time);
+            if state == GameState::Playing {
+                powerups.draw_bird_auras(bird.x, bird.y, game_time);
+            }
+        }
+
+        // SlowMo border vignette
+        if powerups.is_slowmo_active() {
+            draw_slowmo_vignette();
         }
 
         // ── HUD / Overlays ──────────────────────────────────────────────
         match state {
-            GameState::Start => draw_start_screen(game_time, difficulty, skin, &stats),
+            GameState::Start => draw_start_screen(
+                game_time,
+                difficulty,
+                skin,
+                weather.current,
+                audio.muted,
+                &stats,
+            ),
             GameState::Playing => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
-                draw_hud(score, coins_this_game, fps, combo);
+                draw_hud(score, coins_this_game, fps, combo, audio.muted, &powerups);
                 score_flash.draw();
 
                 // White flash on score
@@ -343,7 +428,7 @@ async fn main() {
             }
             GameState::Dying => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
-                draw_hud(score, coins_this_game, fps, 0);
+                draw_hud(score, coins_this_game, fps, 0, audio.muted, &powerups);
             }
             GameState::GameOver => {
                 draw_game_over(score, best_score, coins_this_game);

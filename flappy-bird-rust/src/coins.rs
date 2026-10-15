@@ -45,10 +45,19 @@ impl CoinManager {
         });
     }
 
-    /// Update coins: move with pipe speed, check collection against bird.
-    pub fn update(&mut self, dt: f32, pipe_speed: f32, bird_x: f32, bird_y: f32) -> u32 {
+    /// Update coins: move with pipe speed, apply magnet attraction, check collection against bird.
+    pub fn update(
+        &mut self,
+        dt: f32,
+        pipe_speed: f32,
+        bird_x: f32,
+        bird_y: f32,
+        magnet_active: bool,
+    ) -> u32 {
         let mut collected_count = 0u32;
         let coin_radius = 10.0;
+        let bird_cx = bird_x + BIRD_WIDTH / 2.0;
+        let bird_cy = bird_y + BIRD_HEIGHT / 2.0;
 
         for coin in &mut self.coins {
             coin.x -= pipe_speed * dt;
@@ -57,12 +66,25 @@ impl CoinManager {
                 continue;
             }
 
-            // Simple circle-rect overlap for collection
-            let dx = (bird_x + BIRD_WIDTH / 2.0) - coin.x;
-            let dy = (bird_y + BIRD_HEIGHT / 2.0) - coin.y;
+            // Magnetic attraction towards bird
+            if magnet_active {
+                let dx = bird_cx - coin.x;
+                let dy = bird_cy - coin.y;
+                let dist = (dx * dx + dy * dy).sqrt();
+
+                if dist < 280.0 && dist > 1.0 {
+                    let pull = (320.0 / dist).clamp(4.0, 16.0);
+                    coin.x += (dx / dist) * pull * dt * 60.0;
+                    coin.y += (dy / dist) * pull * dt * 60.0;
+                }
+            }
+
+            // Overlap check for collection
+            let dx = bird_cx - coin.x;
+            let dy = bird_cy - coin.y;
             let dist = (dx * dx + dy * dy).sqrt();
 
-            if dist < coin_radius + BIRD_WIDTH * 0.3 {
+            if dist < coin_radius + BIRD_WIDTH * 0.35 {
                 coin.collected = true;
                 collected_count += 1;
                 self.total_collected += 1;
@@ -70,7 +92,7 @@ impl CoinManager {
         }
 
         // Remove coins that went off screen
-        self.coins.retain(|c| c.x > -20.0);
+        self.coins.retain(|c| c.x > -20.0 && !c.collected);
 
         collected_count
     }
@@ -91,7 +113,7 @@ impl CoinManager {
             // Inner shine
             draw_circle(coin.x, bob_y, 6.0, Color::new(1.0, 0.95 * shimmer, 0.3, 1.0));
 
-            // "C" letter
+            // "$" symbol
             let c_dim = measure_text("$", None, 12, 1.0);
             draw_text("$", coin.x - c_dim.width / 2.0, bob_y + 4.0, 12.0, Color::from_rgba(140, 100, 0, 255));
         }

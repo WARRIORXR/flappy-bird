@@ -13,6 +13,7 @@ pub const BIRD_HEIGHT: f32 = 28.0;
 
 // Pipe settings
 pub const PIPE_WIDTH: f32 = 60.0;
+#[allow(dead_code)]
 pub const PIPE_GAP: f32 = 150.0;
 pub const PIPE_SPACING: f32 = 220.0;
 pub const PIPE_SPEED: f32 = 2.5;

@@ -4,6 +4,9 @@ pub struct AudioManager {
     pub flap_sound: Option<Sound>,
     pub score_sound: Option<Sound>,
     pub hit_sound: Option<Sound>,
+    pub powerup_sound: Option<Sound>,
+    pub shield_break_sound: Option<Sound>,
+    pub muted: bool,
 }
 
 fn create_wav(sample_rate: u32, samples: &[i16]) -> Vec<u8> {
@@ -77,27 +80,94 @@ impl AudioManager {
         let hit_bytes = create_wav(sr, &hit_samples);
         let hit_sound = load_sound_from_bytes(&hit_bytes).await.ok();
 
+        // Power-up pickup tone: rising arpeggio
+        let pup_len = (sr as f32 * 0.22) as usize;
+        let mut pup_samples = Vec::with_capacity(pup_len);
+        for i in 0..pup_len {
+            let t = i as f32 / sr as f32;
+            let step = (t * 20.0) as i32;
+            let freq = match step % 3 {
+                0 => 523.25, // C5
+                1 => 659.25, // E5
+                _ => 783.99, // G5
+            };
+            let env = (1.0 - (i as f32 / pup_len as f32)).powf(0.5);
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 13000.0) as i16;
+            pup_samples.push(val);
+        }
+        let pup_bytes = create_wav(sr, &pup_samples);
+        let powerup_sound = load_sound_from_bytes(&pup_bytes).await.ok();
+
+        // Shield break sound: sharp glass break / crunch
+        let sb_len = (sr as f32 * 0.2) as usize;
+        let mut sb_samples = Vec::with_capacity(sb_len);
+        for i in 0..sb_len {
+            let t = i as f32 / sr as f32;
+            let freq = (800.0 - t * 1800.0).max(100.0);
+            let env = (1.0 - (i as f32 / sb_len as f32)).powf(1.5);
+            let noise = ((t * 12345.67).sin() * 4000.0) as i16;
+            let tone = ((t * freq * std::f32::consts::TAU).sin() * env * 12000.0) as i16;
+            sb_samples.push(tone.saturating_add(noise));
+        }
+        let sb_bytes = create_wav(sr, &sb_samples);
+        let shield_break_sound = load_sound_from_bytes(&sb_bytes).await.ok();
+
         Self {
             flap_sound,
             score_sound,
             hit_sound,
+            powerup_sound,
+            shield_break_sound,
+            muted: false,
         }
     }
 
+    pub fn toggle_mute(&mut self) -> bool {
+        self.muted = !self.muted;
+        self.muted
+    }
+
     pub fn play_flap(&self) {
+        if self.muted {
+            return;
+        }
         if let Some(snd) = &self.flap_sound {
             play_sound_once(snd);
         }
     }
 
     pub fn play_score(&self) {
+        if self.muted {
+            return;
+        }
         if let Some(snd) = &self.score_sound {
             play_sound_once(snd);
         }
     }
 
     pub fn play_hit(&self) {
+        if self.muted {
+            return;
+        }
         if let Some(snd) = &self.hit_sound {
+            play_sound_once(snd);
+        }
+    }
+
+    pub fn play_powerup(&self) {
+        if self.muted {
+            return;
+        }
+        if let Some(snd) = &self.powerup_sound {
+            play_sound_once(snd);
+        }
+    }
+
+    pub fn play_shield_break(&self) {
+        if self.muted {
+            return;
+        }
+        if let Some(snd) = &self.shield_break_sound {
             play_sound_once(snd);
         }
     }

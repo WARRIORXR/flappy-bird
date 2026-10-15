@@ -155,6 +155,13 @@ impl Bird {
         self.dead && self.y > GAME_HEIGHT + 50.0
     }
 
+    pub fn draw_with_invuln(&self, is_invulnerable: bool, time: f32) {
+        if is_invulnerable && (((time * 16.0) as i32) % 2 == 0) {
+            return;
+        }
+        self.draw();
+    }
+
     pub fn draw(&self) {
         let (body_col, belly_col, wing_col, outline_col) = self.skin.colors();
 
