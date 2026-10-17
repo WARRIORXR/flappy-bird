@@ -92,6 +92,34 @@ cargo run --release
 
 ---
 
+## 📸 Game Photos
+
+<div align="center">
+
+| | |
+|:---:|:---:|
+| ![Start Screen](screenshots/start_screen.png) | ![Gameplay Action](screenshots/gameplay_action.png) |
+| **Start Screen** | **Gameplay Action** |
+| ![Power-Ups](screenshots/powerups.png) | ![Weather Effects](screenshots/weather_effects.png) |
+| **Power-Ups in Action** | **Weather Effects** |
+| ![Game Over](screenshots/game_over.png) | ![Night Mode](screenshots/night_mode.png) |
+| **Game Over Screen** | **Night Mode with Stars** |
+
+</div>
+
+---
+
+## 📦 Download Executable
+
+> **Windows users**: Download the pre-built `.exe` and run it directly — no Rust toolchain needed!
+
+| Platform | File | Size |
+|:---|:---|:---|
+| 🪟 **Windows (x64)** | [`flappy-bird-rust.exe`](flappy-bird-rust.exe) | ~2 MB |
+
+
+---
+
 ## 🌟 Deep Gameplay Systems
 
 ### ⚡ Power-Up Arsenal
