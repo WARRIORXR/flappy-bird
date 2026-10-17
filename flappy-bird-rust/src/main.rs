@@ -42,10 +42,10 @@ enum GameState {
 fn window_conf() -> Conf {
     Conf {
         window_title: "Flappy Bird - Rust Edition".to_string(),
-        window_width: 480,
-        window_height: 840,
+        window_width: 400,
+        window_height: 700,
         window_resizable: true,
-        high_dpi: true,
+        high_dpi: false,
         ..Default::default()
     }
 }
@@ -164,8 +164,8 @@ async fn main() {
     let mut score_flash_white = 0.0f32; // brief white flash on score
     let mut game_time = 0.0f32;
 
-    let mut screen_fit = ScreenFit::Fill;
-    let mut window_scale = WindowScale::Medium;
+    let mut screen_fit = ScreenFit::Fit;
+    let mut window_scale = WindowScale::Compact;
     let mut is_fullscreen = false;
 
     loop {
@@ -524,13 +524,13 @@ async fn main() {
         let (vp_x, vp_y, vp_w, vp_h) = match screen_fit {
             ScreenFit::Fit => {
                 let scale = (sw / GAME_WIDTH).min(sh / GAME_HEIGHT);
-                let vp_w = (GAME_WIDTH * scale) as i32;
-                let vp_h = (GAME_HEIGHT * scale) as i32;
-                let vp_x = ((sw - vp_w as f32) / 2.0) as i32;
-                let vp_y = ((sh - vp_h as f32) / 2.0) as i32;
+                let vp_w = (GAME_WIDTH * scale).round() as i32;
+                let vp_h = (GAME_HEIGHT * scale).round() as i32;
+                let vp_x = ((sw - vp_w as f32) / 2.0).round() as i32;
+                let vp_y = ((sh - vp_h as f32) / 2.0).round() as i32;
                 (vp_x, vp_y, vp_w, vp_h)
             }
-            ScreenFit::Fill => (0, 0, sw as i32, sh as i32),
+            ScreenFit::Fill => (0, 0, sw.round() as i32, sh.round() as i32),
         };
 
         clear_background(BLACK);

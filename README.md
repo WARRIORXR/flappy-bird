@@ -88,8 +88,8 @@
 
 | Platform | File | Direct Download Link | Size |
 |:---|:---|:---:|:---:|
-| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download v1.2.0 .exe**](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.2.0/flappy-bird-rust.exe) | ~833 KB |
-| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~833 KB |
+| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download v1.3.0 .exe**](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.3.0/flappy-bird-rust.exe) | ~834 KB |
+| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~834 KB |
 
 *Double-click `flappy-bird-rust.exe` to play instantly!*
 
@@ -98,7 +98,7 @@
 ## 🚀 Quick Start
 
 ### Play Immediately (No Installation)
-Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.2.0/flappy-bird-rust.exe) and double-click to launch!
+Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.3.0/flappy-bird-rust.exe) and double-click to launch!
 
 ### Build from Source
 Make sure you have the Rust toolchain installed (1.70 or higher). If needed, install via [rustup.rs](https://rustup.rs):
@@ -235,18 +235,19 @@ The sky engine continuously computes celestial positioning and interpolates atmo
 
 ---
 
-### 🔊 In-Memory Procedural Audio Synthesizer
+### 🔊 In-Memory Procedural Audio Synthesizer & Native Windows Audio
 
-The audio engine (`audio.rs`) synthesizes raw PCM audio into standard **44,100 Hz 16-bit mono RIFF/WAVE** binary buffers at launch for crystal-clear playback on all Windows audio drivers:
+The audio engine (`audio.rs`) synthesizes raw PCM audio into standard **44,100 Hz 16-bit mono RIFF/WAVE** binary buffers in memory at launch. On Windows, it leverages the native Windows Multimedia API (`winmm.dll` via `PlaySoundA`) with leaked static memory slices:
 
 ```
-[44-byte RIFF/WAVE Header] ➔ [44.1 kHz 16-bit PCM Audio Sample Buffer] ➔ macroquad::audio::load_sound_from_bytes
+[Raw Math Functions] ➔ [44-byte RIFF/WAVE Header + PCM Buffer] ➔ Native Windows winmm / Macroquad Fallback
 ```
 
+- **Universal Hardware Compatibility**: Bypasses WASAPI device format mismatches (which can cause silent playback or crashes on 48 kHz / 24-bit configurations, USB DACs, and Bluetooth headphones).
 - **Flap**: Rapid rising frequency chirp ($400\text{ Hz} \rightarrow 2400\text{ Hz}$) with linear decay envelope.
 - **Score Chime**: Dual-tone musical harmonic ($650\text{ Hz} \rightarrow 920\text{ Hz}$) with lingering ring.
-- **Golden Fanfare (New)**: 4-note ascending major arpeggio ($C_5 \rightarrow E_5 \rightarrow G_5 \rightarrow C_6$) for Golden Pipes.
-- **Close Shave Whoosh (New)**: High-speed Doppler aerodynamic frequency sweep ($1200\text{ Hz} \rightarrow 300\text{ Hz}$).
+- **Golden Fanfare**: 4-note ascending major arpeggio ($C_5 \rightarrow E_5 \rightarrow G_5 \rightarrow C_6$) for Golden Pipes.
+- **Close Shave Whoosh**: High-speed Doppler aerodynamic frequency sweep ($1100\text{ Hz} \rightarrow 3500\text{ Hz}$).
 - **Hit**: Descending square buzz ($220\text{ Hz} \rightarrow 50\text{ Hz}$) simulating sudden collision impact.
 - **Power-Up**: Harmonic 3-step chord progression ($C_5 \rightarrow E_5 \rightarrow G_5$).
 - **Shield Break**: High-frequency resonant fracture ($800\text{ Hz} \rightarrow 100\text{ Hz}$) blended with high-entropy white noise crunch.
@@ -264,19 +265,20 @@ The audio engine (`audio.rs`) synthesizes raw PCM audio into standard **44,100 H
 
 ---
 
-### 🖥️ Fullscreen & Custom Screen Sizing (v1.2.0)
+### 🖥️ Fullscreen, High-DPI & Aspect-Preserving Screen Sizing (v1.3.0)
 
 Play Flappy Bird exactly how you want with complete window and display flexibility:
 
-- 📺 **Full Window Mode (Default)**: Automatically expands and stretches the gameplay canvas to fill 100% of your window dimensions with **zero black borders**.
-- 📏 **Retro Letterbox Fit Mode (4:7)**: Press <kbd>X</kbd> anytime to lock into the classic 400×700 arcade portrait aspect ratio with clean letterboxed sidebars.
+- 📏 **Retro Letterbox Fit Mode (Default)**: Strictly locks to the authentic 400×700 ($4:7$) arcade aspect ratio, perfectly centering the gameplay canvas with crisp black letterbox/pillarbox borders and **zero distortion or stretching**.
+- 📺 **Full Window Stretch Mode**: Press <kbd>X</kbd> anytime to toggle between aspect-preserving Fit mode and Full Window mode.
+- 🎯 **High-DPI Alignment**: Utilizes direct 1:1 pixel framebuffer mapping (`high_dpi: false`) to ensure viewports align perfectly across all Windows display scalings (100%, 125%, 150%, 200%) without corner clipping or visual offsets.
 - 🪟 **Window Scale Presets**: Press <kbd>Z</kbd> or <kbd>F10</kbd> in windowed mode to cycle between:
-  - **Compact**: $400 \times 700$
-  - **Medium**: $480 \times 840$
-  - **Large**: $560 \times 980$
-  - **Huge**: $640 \times 1120$
+  - **Compact**: $400 \times 700$ (1.0× Native)
+  - **Medium**: $480 \times 840$ (1.2×)
+  - **Large**: $560 \times 980$ (1.4×)
+  - **Huge**: $640 \times 1120$ (1.6×)
 - 🖥️ **True Fullscreen**: Press <kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> at any point to transition into seamless borderless fullscreen across your entire monitor.
-- ✋ **Freeform Window Resizing**: Grab and drag any window edge or corner to resize on the fly to your exact liking.
+- ✋ **Freeform Window Resizing**: Grab and drag any window edge or corner to resize on the fly—the game automatically scales smoothly while preserving its 4:7 proportions.
 
 ---
 

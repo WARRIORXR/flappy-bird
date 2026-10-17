@@ -1,13 +1,52 @@
-use macroquad::audio::{load_sound_from_bytes, play_sound_once, Sound};
+#[cfg(not(target_os = "windows"))]
+use macroquad::audio::play_sound_once;
+use macroquad::audio::{load_sound_from_bytes, Sound};
+
+#[cfg(target_os = "windows")]
+mod win_audio {
+    #[link(name = "winmm")]
+    extern "system" {
+        fn PlaySoundA(psz_sound: *const u8, hmod: *mut std::ffi::c_void, fdw_sound: u32) -> i32;
+    }
+    const SND_ASYNC: u32 = 0x0001;
+    const SND_NODEFAULT: u32 = 0x0002;
+    const SND_MEMORY: u32 = 0x0004;
+
+    pub fn play_wav(bytes: &'static [u8]) {
+        unsafe {
+            PlaySoundA(bytes.as_ptr(), std::ptr::null_mut(), SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
+        }
+    }
+
+    pub fn stop_sound() {
+        unsafe {
+            PlaySoundA(std::ptr::null(), std::ptr::null_mut(), 0);
+        }
+    }
+}
 
 pub struct AudioManager {
+    #[allow(dead_code)]
     pub flap_sound: Option<Sound>,
+    #[allow(dead_code)]
     pub score_sound: Option<Sound>,
+    #[allow(dead_code)]
     pub hit_sound: Option<Sound>,
+    #[allow(dead_code)]
     pub powerup_sound: Option<Sound>,
+    #[allow(dead_code)]
     pub shield_break_sound: Option<Sound>,
+    #[allow(dead_code)]
     pub golden_sound: Option<Sound>,
+    #[allow(dead_code)]
     pub close_shave_sound: Option<Sound>,
+    pub flap_wav: &'static [u8],
+    pub score_wav: &'static [u8],
+    pub hit_wav: &'static [u8],
+    pub powerup_wav: &'static [u8],
+    pub shield_break_wav: &'static [u8],
+    pub golden_wav: &'static [u8],
+    pub close_shave_wav: &'static [u8],
     pub muted: bool,
 }
 
@@ -146,6 +185,14 @@ impl AudioManager {
         let cs_bytes = create_wav(sr, &cs_samples);
         let close_shave_sound = load_sound_from_bytes(&cs_bytes).await.ok();
 
+        let flap_wav = Box::leak(flap_bytes.into_boxed_slice());
+        let score_wav = Box::leak(score_bytes.into_boxed_slice());
+        let hit_wav = Box::leak(hit_bytes.into_boxed_slice());
+        let pup_wav = Box::leak(pup_bytes.into_boxed_slice());
+        let sb_wav = Box::leak(sb_bytes.into_boxed_slice());
+        let golden_wav = Box::leak(gold_bytes.into_boxed_slice());
+        let cs_wav = Box::leak(cs_bytes.into_boxed_slice());
+
         Self {
             flap_sound,
             score_sound,
@@ -154,12 +201,23 @@ impl AudioManager {
             shield_break_sound,
             golden_sound,
             close_shave_sound,
+            flap_wav,
+            score_wav,
+            hit_wav,
+            powerup_wav: pup_wav,
+            shield_break_wav: sb_wav,
+            golden_wav,
+            close_shave_wav: cs_wav,
             muted: false,
         }
     }
 
     pub fn toggle_mute(&mut self) -> bool {
         self.muted = !self.muted;
+        if self.muted {
+            #[cfg(target_os = "windows")]
+            win_audio::stop_sound();
+        }
         self.muted
     }
 
@@ -167,6 +225,10 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.flap_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.flap_sound {
             play_sound_once(snd);
         }
@@ -176,6 +238,10 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.score_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.score_sound {
             play_sound_once(snd);
         }
@@ -185,6 +251,10 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.golden_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.golden_sound {
             play_sound_once(snd);
         }
@@ -194,6 +264,10 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.close_shave_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.close_shave_sound {
             play_sound_once(snd);
         }
@@ -203,6 +277,10 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.hit_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.hit_sound {
             play_sound_once(snd);
         }
@@ -212,6 +290,10 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.powerup_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.powerup_sound {
             play_sound_once(snd);
         }
@@ -221,8 +303,50 @@ impl AudioManager {
         if self.muted {
             return;
         }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.shield_break_wav);
+
+        #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.shield_break_sound {
             play_sound_once(snd);
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_wav_validity() {
+        let sr = 44100;
+        let flap_len = (sr as f32 * 0.1) as usize;
+        let mut flap_samples = Vec::with_capacity(flap_len);
+        for i in 0..flap_len {
+            let t = i as f32 / sr as f32;
+            let freq = 400.0 + t * 2000.0;
+            let env = 1.0 - (i as f32 / flap_len as f32);
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 14000.0) as i16;
+            flap_samples.push(val);
+        }
+        let flap_bytes = create_wav(sr, &flap_samples);
+        println!("Generated WAV length: {} bytes", flap_bytes.len());
+        println!("Header: {:?}", &flap_bytes[..44]);
+
+        #[cfg(target_os = "windows")]
+        {
+            #[link(name = "winmm")]
+            extern "system" {
+                fn PlaySoundA(psz_sound: *const u8, hmod: *mut std::ffi::c_void, fdw_sound: u32) -> i32;
+            }
+            const SND_SYNC: u32 = 0x0000;
+            const SND_MEMORY: u32 = 0x0004;
+            let res = unsafe { PlaySoundA(flap_bytes.as_ptr(), std::ptr::null_mut(), SND_MEMORY | SND_SYNC) };
+            println!("PlaySoundA result: {}", res);
+            assert_ne!(res, 0, "PlaySoundA failed");
+        }
+    }
+}
+
+
+
