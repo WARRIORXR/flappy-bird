@@ -1,152 +1,303 @@
+<div align="center">
+
 # 🐦 Flappy Bird — Rust Edition
 
-A feature-rich Flappy Bird game built entirely in **Rust** using the [macroquad](https://github.com/not-fl3/macroquad) game framework. No external assets or sprite sheets required — all graphics, animations, particles, and sound effects are procedurally drawn and synthesized at runtime!
+**A high-performance, asset-free, feature-rich reimagining of Flappy Bird built entirely in Rust.**
 
-![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange?logo=rust)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20WASM-green)
+[![Rust](https://img.shields.io/badge/Rust-1.70%2B-dea584.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
+[![Macroquad](https://img.shields.io/badge/Framework-Macroquad%200.4-2575fc.svg?style=for-the-badge)](https://macroquad.rs/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20WASM-34a853.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird/pulls)
+
+<p align="center">
+  <b>100% Procedural Rendering</b> • <b>Real-Time Audio Synthesis</b> • <b>Dynamic Weather Engine</b><br>
+  <b>Persistent Achievements</b> • <b>Power-Up Combat Mechanics</b> • <b>Zero Sprite Sheets or External Audio Assets</b>
+</p>
+
+</div>
+
+---
+
+## 📑 Table of Contents
+
+- [Overview & Philosophy](#-overview--philosophy)
+- [Quick Start](#-quick-start)
+- [Controls](#-controls)
+- [Deep Gameplay Systems](#-deep-gameplay-systems)
+  - [⚡ Power-Up Arsenal](#-power-up-arsenal)
+  - [🌧️ Atmospheric Weather Engine](#️-atmospheric-weather-engine)
+  - [🏆 Persistent Achievement System](#-persistent-achievement-system)
+  - [📊 Difficulty Modes & Scoring Economy](#-difficulty-modes--scoring-economy)
+  - [🎨 Procedural Bird Skins](#-procedural-bird-skins)
+  - [🌅 Day / Sunset / Night Celestial Cycle](#-day--sunset--night-celestial-cycle)
+  - [🔊 In-Memory Procedural Audio Synthesizer](#-in-memory-procedural-audio-synthesizer)
+  - [💥 Visual FX & Screen Polish](#-visual-fx--screen-polish)
+- [Project Architecture](#-project-architecture)
+- [Save Data & Persistence](#-save-data--persistence)
+- [Cross-Platform Compilation Guide](#-cross-platform-compilation-guide)
+  - [Windows](#windows)
+  - [macOS](#macos)
+  - [Linux (Ubuntu / Debian)](#linux-ubuntu--debian)
+  - [WebAssembly (WASM Browser Build)](#webassembly-wasm-browser-build)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 💡 Overview & Philosophy
+
+**Flappy Bird — Rust Edition** is designed around a singular technical philosophy: **absolute self-containment**.
+
+- **Zero Sprite Sheets**: Every element — the bird, flapping wings, beak, blinking eyes, oscillating pipes, layered clouds, parallax ground, chevrons, pebbles, and celestial bodies — is calculated and drawn using geometric primitives and trigonometric functions at runtime.
+- **Zero Audio Files**: No `.mp3`, `.wav`, or `.ogg` files are bundled. The game features an integrated software synthesizer that constructs valid RIFF/WAVE byte buffers in memory using sine waves, frequency chirps, arpeggio scales, and noise generators.
+- **Sub-Millisecond Execution**: Powered by [macroquad](https://macroquad.rs/) on modern OpenGL/WebGL, delivering locked, responsive 60+ FPS performance with minimal CPU and memory overhead.
+- **Virtual Resolution Scaling**: Runs on a crisp, fixed 400×700 virtual canvas that scales and letterboxes cleanly to any window dimensions or display aspect ratio.
 
 ---
 
 ## 🚀 Quick Start
 
+### Prerequisites
+Make sure you have the Rust toolchain installed (1.70 or higher). If needed, install via [rustup.rs](https://rustup.rs):
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+### Clone & Launch
 ```bash
 # Clone the repository
 git clone https://github.com/WARRIORXR/flappy-bird.git
 cd flappy-bird/flappy-bird-rust
 
-# Run the game
+# Run in optimized release mode
 cargo run --release
 ```
-
-> **Prerequisites:** Rust 1.70+ and Cargo. Install via [rustup.rs](https://rustup.rs).
 
 ---
 
 ## 🎮 Controls
 
-| Key | Action |
-|-----|--------|
-| `Space` / `↑` / `Left Click` | Flap / Start / Restart |
-| `P` | Pause / Resume |
-| `M` | Mute / Unmute Audio |
-| `D` | Cycle Difficulty (`Easy`, `Normal`, `Hard`) on start screen |
-| `C` | Cycle Bird Skin (`Classic`, `Blue`, `Red`, `Green`, `Purple`) on start screen |
-| `W` | Cycle Weather (`Clear`, `Rain`, `Snow`, `Sakura`, `Firefly`) on start screen |
-| `F` | Toggle FPS overlay |
-| `R` | Quick restart (Game Over screen) |
+| Key / Input | Context | Action |
+|:---:|:---:|:---|
+| <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | In-Game | **Flap wings** (upward velocity burst) |
+| <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | Start / Game Over | **Start / Replay game** |
+| <kbd>P</kbd> | Playing | **Pause / Unpause game** |
+| <kbd>M</kbd> | Any screen | **Toggle audio mute / unmute** |
+| <kbd>D</kbd> | Start Screen | **Cycle Difficulty** (`Easy` ➔ `Normal` ➔ `Hard`) |
+| <kbd>C</kbd> | Start Screen | **Cycle Bird Skin** (`Classic` ➔ `Blue` ➔ `Red` ➔ `Green` ➔ `Purple`) |
+| <kbd>W</kbd> | Start Screen | **Cycle Weather** (`Clear` ➔ `Rain` ➔ `Snow` ➔ `Sakura` ➔ `Firefly`) |
+| <kbd>F</kbd> | Any screen | **Toggle real-time FPS overlay** |
+| <kbd>R</kbd> | Game Over | **Instant quick restart** |
 
 ---
 
-## ✨ Features
+## 🌟 Deep Gameplay Systems
 
-### ⚡ Power-Ups System
-- 🛡️ **Energy Shield** — Absorbs one fatal collision! Breaks with a shockwave burst, camera shake, and grants 1.2s of mercy invulnerability so you can recover.
-- 🧲 **Coin Magnet** — Pulls all coins within range directly toward the bird with magnetic physics for 8 seconds.
-- ⏳ **Slow-Mo (Time Warp)** — Dilation effect that slows pipe speed and world scrolling by 40% for 6 seconds, complete with a cyan border vignette.
-- 🔥 **Double Score (2X)** — Doubles all points earned from pipes and coins for 10 seconds! Features an orange fire aura and border vignette.
+### ⚡ Power-Up Arsenal
 
-### 🌧️ Dynamic Weather System
-- ☀️ **Clear Sky** — Classic bright skies.
-- 🌧️ **Rain** — Angled rain streaks drifting across the screen.
-- ❄️ **Snow** — Gentle swirling snowflakes floating down.
-- 🌸 **Sakura** — Drifting, rotating cherry blossom petals.
-- 🪲 **Firefly** — Glowing fireflies that float and bob with pulsing bioluminescent glow effects.
-- *Weather transitions automatically at score milestones (20, 40, 60, 80) or can be toggled manually with `W`.*
+Power-ups spawn periodically in the vertical gap between incoming pipes with bobbing physics and a glowing outer halo.
 
-### 🏆 Achievement System
-10 unlockable achievements that persist across sessions:
-| Achievement | Requirement |
-|---|---|
-| 🪽 **First Flight** | Score your first point |
-| 💰 **Coin Collector** | Collect 10 coins in one game |
-| 🛡️ **Shield Master** | Use 3 shields in one game |
-| 💪 **Survivor** | Score 25 points |
-| 🏎️ **Speed Demon** | Score 50 on Hard difficulty |
-| 🎯 **Perfectionist** | Achieve a 20x combo |
-| 💯 **Centurion** | Score 100 points |
-| 👑 **Coin King** | Collect 50 lifetime coins |
-| 🎖️ **Veteran** | Play 50 games |
-| 🌪️ **Weather Warrior** | Score 30 in non-Clear weather |
-
-### 🪙 Economy & Scoring
-- 🪙 **Coin Collection** — Gold coins spawn inside pipe gaps with bobbing and shimmer animations; each coin gives 2 bonus points (4 with 2X Score).
-- 🔥 **Combo System** — Consecutive pipes passed without dying build combo multipliers (`x3`, `x5`, `x10+`) with escalating HUD colors.
-- 📊 **Difficulty Bonus** — Hard mode awards +1 bonus point per pipe passed.
-- ⚡ **Score Flash & Milestones** — White screen flash on points scored, plus celebration banners at scores 10, 25, 50, 75, 100 (`NICE!`, `AMAZING!`, `LEGENDARY!`, `INSANE!`, `GOD MODE!`).
-- 🏅 **Tiered Medals** — Bronze (10+), Silver (20+), Gold (30+), and Platinum (50+) awarded on the Game Over screen.
-
-### 🎨 Visuals & Bird Customization
-- 🐦 **5 Bird Skins** — `Classic` (yellow), `Blue`, `Red`, `Green`, `Purple` with custom body, belly, wing, and outline palettes.
-- 💀 **Death Tumble Animation** — On fatal impact, bird pops up, tumbles with rotational spin, displays X-eyes, and plummets off screen before the Game Over menu appears.
-- 🌅 **Day / Sunset / Night Cycle** — Sky gradient smoothly transitions from daylight to sunset orange to starry night as you score.
-- ✨ **Particle FX & Shockwaves** — Flight trail, explosion debris, score sparkles, and circular expanding shockwaves on shield break / powerup pickup.
-- 💨 **Dynamic Speed Lines** — Cinematic horizontal motion streaks appear at high velocities.
-- 📳 **Screen Shake** — Camera impact shake on crash and shield break.
-- 🔥 **Power-Up Auras** — Each active power-up shows a unique visual aura around the bird (shield bubble, magnet ring, fire hexagon).
-- 🌈 **Power-Up Vignettes** — Cyan border for Slow-Mo, orange border for Double Score.
-
-### 🔊 Procedural Audio & Mute
-- 🎵 **Synthesized Sound Effects** — Pure in-memory procedural WAV synthesis:
-  - Rising frequency sine wave on flap
-  - Two-tone melodic chime on score
-  - Descending frequency buzz on collision
-  - 3-step arpeggio chord on power-up pickup
-  - Glass crunch / crack sound on shield break
-- 🔇 **Audio Mute Toggle** — Press `M` anytime to mute/unmute audio.
-
-### 📊 Persistence & Polish
-- 💾 **High Score Saving** — Automatically persists best score to `highscore.txt`.
-- 📈 **Lifetime Statistics** — Total games played, cumulative score, and total coins saved in `stats.txt` and displayed on the start menu.
-- 🏆 **Achievement Persistence** — Unlocked achievements saved to `achievements.txt` and persist across sessions.
-- 🖥️ **Letterboxed Virtual Resolution** — Sharp 400×700 virtual canvas perfectly centered and scaled to fit any window aspect ratio.
-- ⏸️ **Pause & FPS Counter** — Press `P` to pause and `F` to view real-time FPS.
+| Power-Up | Symbol | Duration | Color | Aura & Visual Effect | Mechanical Benefit |
+|:---|:---:|:---:|:---:|:---|:---|
+| **Energy Shield** | `S` | Single Hit | Cyan (`#40E0FF`) | Pulsing concentric forcefield bubble | Absorbs one fatal collision, triggers a shockwave, camera shake, and grants **1.2s mercy invulnerability**. |
+| **Coin Magnet** | `M` | 8.0s | Orchid (`#DA70D6`) | Rotating 16-point electric field | Exerts inverse-distance magnetic pull on all onscreen coins, dragging them directly to the bird. |
+| **Slow-Mo (Time Warp)** | `T` | 6.0s | Gold (`#FFD700`) | Cyan vignette border | Dilates world time by 40% (0.6x speed), dramatically slowing pipe and obstacle advance for precision maneuvers. |
+| **Double Score (2X)** | `2` | 10.0s | OrangeRed (`#FF4500`) | Rotating hexagonal fire aura + warm vignette | **2× Multiplier** on all points earned from passing pipes and collecting coins. |
 
 ---
 
-## 📁 Project Structure
+### 🌧️ Atmospheric Weather Engine
+
+The weather system alters atmospheric visuals with drifting particle simulations:
+
+- ☀️ **Clear Sky**: Crisp blue gradients with serene parallax drifting clouds.
+- 🌧️ **Rain**: High-speed, slanted rainfall streaks with dynamic ground spatter.
+- ❄️ **Snow**: Gentle, meandering snowflakes driven by sinusoidal lateral wind drift.
+- 🌸 **Sakura**: Floating Japanese cherry blossom petals with variable rotational torque and wind sway.
+- 🪲 **Firefly**: Nighttime bioluminescent orbs drifting in gentle organic paths with breathing dual-layer glow effects.
+
+> 💡 **Dynamic Transitions**: While weather can be manually chosen via <kbd>W</kbd>, it also shifts dynamically as your score progresses: **Score 20 ➔ Rain**, **Score 40 ➔ Snow**, **Score 60 ➔ Sakura**, and **Score 80 ➔ Firefly**!
+
+---
+
+### 🏆 Persistent Achievement System
+
+10 built-in achievements automatically tracked and saved to `achievements.txt`. Unlocking an achievement triggers an animated slide-in golden banner with a trophy icon.
+
+| Icon | Achievement | Objective Requirement | Tracking Mode |
+|:---:|:---|:---|:---:|
+| 🪽 | **First Flight** | Score your first point | Per-game |
+| 💰 | **Coin Collector** | Collect 10 coins in a single run | Per-game |
+| 🛡️ | **Shield Master** | Absorb 3 fatal collisions with shields in one run | Per-game |
+| 💪 | **Survivor** | Reach an individual score of 25 | Per-game |
+| 🏎️ | **Speed Demon** | Score 50 or higher on **Hard** difficulty | Per-game |
+| 🎯 | **Perfectionist** | Maintain a 20× flawless pipe combo | Per-game |
+| 💯 | **Centurion** | Reach a grand score of 100 points | Per-game |
+| 👑 | **Coin King** | Accumulate 50 coins across all lifetime sessions | Lifetime |
+| 🎖️ | **Veteran** | Play 50 total games | Lifetime |
+| 🌪️ | **Weather Warrior** | Score 30 points in non-Clear weather | Per-game |
+
+---
+
+### 📊 Difficulty Modes & Scoring Economy
+
+| Difficulty | Pipe Gap | Base Speed | Hard Mode Bonus | Target Playstyle |
+|:---|:---:|:---:|:---:|:---|
+| **Easy** | 180 px | 0.85× | None | Relaxed, generous gap margins for learning physics |
+| **Normal** | 150 px | 1.00× | None | Classic arcade balance with progressing challenge |
+| **Hard** | 125 px | 1.25× | **+1 bonus point per pipe passed** | Tight clearance, rapid reflexes, high score grinding |
+
+- **Combo Counter**: Passing pipes without collision builds combo streaks (`x3`, `x5`, `x10+`), highlighted with color-coded HUD badges.
+- **Coin Value**: Each collected coin awards **2 bonus points** (or **4 points** when Double Score is active).
+- **Medal Ranks**:
+  - 🥉 **Bronze**: Score 10+
+  - 🥈 **Silver**: Score 20+
+  - 🥇 **Gold**: Score 30+
+  - 💎 **Platinum**: Score 50+
+
+---
+
+### 🎨 Procedural Bird Skins
+
+Cycle skins instantly on the start menu with <kbd>C</kbd>. Each skin alters the bird's primary feathers, belly, wing accents, and outline tone:
+
+| Skin Name | Primary Color | Underbelly | Wing Accent | Outline Tone |
+|:---|:---:|:---:|:---:|:---:|
+| **Classic** | Goldenrod (`#FFD700`) | Cream (`#FFF3B0`) | Amber (`#F0A500`) | Dark Gold (`#DAA520`) |
+| **Blue** | Sky Blue (`#46A0FF`) | Ice Blue (`#AAD2FF`) | Royal Blue (`#2878DC`) | Navy (`#1E5AB4`) |
+| **Red** | Crimson (`#E64646`) | Soft Salmon (`#FFAA96`) | Deep Red (`#BE2828`) | Maroon (`#A01E1E`) |
+| **Green** | Emerald (`#50C850`) | Mint (`#AAF0AA`) | Forest Green (`#32A032`) | Olive (`#1E781E`) |
+| **Purple** | Amethyst (`#AA50DC`) | Lavender (`#D2AAFF`) | Violet (`#8232B4`) | Dark Indigo (`#641E96`) |
+
+---
+
+### 🌅 Day / Sunset / Night Celestial Cycle
+
+The sky environment continuously evaluates score to smoothly morph atmospheric gradients across 14 blended horizon bands:
+1. **Day** (Scores 0–14): Vivid cyan skies and soft blue horizon.
+2. **Sunset** (Scores 15–26): Fiery orange and warm peach sunset gradients.
+3. **Night** (Scores 27–40): Deep cosmic navy featuring 40 procedural twinkling stars.
+4. *Repeats every 40 points smoothly.*
+
+---
+
+### 🔊 In-Memory Procedural Audio Synthesizer
+
+The audio engine (`audio.rs`) synthesizes raw PCM audio into standard 22,050 Hz 16-bit mono RIFF/WAVE binary byte sequences at launch:
+
+```
+[44-byte RIFF/WAVE Header] ➔ [16-bit PCM Audio Sample Buffer] ➔ macroquad::audio::load_sound_from_bytes
+```
+
+- **Flap**: Rapid rising frequency sine wave ($400\text{ Hz} \rightarrow 2400\text{ Hz}$) with linear decay envelope.
+- **Score Chime**: Dual-tone musical harmonic ($650\text{ Hz} \rightarrow 920\text{ Hz}$) with lingering ring.
+- **Hit**: Descending square buzz ($220\text{ Hz} \rightarrow 50\text{ Hz}$) simulating sudden impact.
+- **Power-Up**: Fast 3-step ascending major chord arpeggio ($C_5 \rightarrow E_5 \rightarrow G_5$).
+- **Shield Break**: High-frequency harmonic chirp ($800\text{ Hz} \rightarrow 100\text{ Hz}$) mixed with high-entropy white noise crunch.
+
+---
+
+### 💥 Visual FX & Screen Polish
+
+- **Death Tumble**: Bird pops upward with negative velocity, enters uncontrolled rotational spin, draws X-eyes, and plummets beneath the screen.
+- **Dynamic Speed Lines**: Cinematic horizontal motion streaks emerge across the screen as pipes exceed baseline speeds.
+- **Shockwave Ripples**: Expanding polygon rings on shield breakage and power-up acquisition.
+- **Screen Shake**: Decaying random camera jitter on impacts and shield destruction.
+- **Vignettes**: Distinct edge overlays signaling active time dilation or score doubling.
+
+---
+
+## 📁 Project Architecture
 
 ```
 flappy-bird-rust/
-├── Cargo.toml           # Dependencies (macroquad 0.4)
-├── .gitignore
-└── src/
-    ├── main.rs           # Game loop, state machine, camera, input, achievement checks
-    ├── constants.rs      # Physics and dimension tuning constants
-    ├── bird.rs           # Bird physics, skins, invulnerability & death animation
-    ├── pipes.rs          # Pipe spawning, vertical oscillation, collision
-    ├── powerups.rs       # Shield, Magnet, Slow-Mo, and Double Score power-up logic & auras
-    ├── weather.rs        # Rain, Snow, Sakura, Firefly weather simulation & particle render
-    ├── coins.rs          # Coin spawning, bobbing animation & magnetic pull
-    ├── ground.rs         # Parallax ground strip, chevrons & pebbles
-    ├── clouds.rs         # Multi-layered parallax cloud system
-    ├── particles.rs      # Trail, explosion, sparkle, and shockwave effects
-    ├── background.rs     # Day/night sky gradient + twinkling stars
-    ├── audio.rs          # Procedural WAV synthesis & mute management
-    ├── achievements.rs   # 10-achievement unlock system with persistence & notification UI
-    └── ui.rs             # Start screen, game over, HUD, medals, combo, vignettes
+├── Cargo.toml            # Project dependencies & crate metadata
+├── src/
+│   ├── main.rs           # Game loop, state machine, camera matrix, input routing
+│   ├── constants.rs      # Physics coefficients, canvas sizing, and layout limits
+│   ├── bird.rs           # Kinematics, rotation interpolation, skin palettes, death spin
+│   ├── pipes.rs          # Procedural pipe generation, vertical sine oscillation, collision
+│   ├── powerups.rs       # Shield, Magnet, SlowMo, DoubleScore mechanics, timers, auras
+│   ├── weather.rs        # Rain, Snow, Sakura, Firefly multi-particle atmospheric simulator
+│   ├── coins.rs          # Gap coin spawning, bobbing kinematics, inverse-distance magnet
+│   ├── achievements.rs   # 10 persistent achievements, disk I/O, animated notification banner
+│   ├── ground.rs         # Scrolling parallax ground with procedural grass, chevrons & pebbles
+│   ├── clouds.rs         # Multi-layered parallax cloud system with dynamic alpha
+│   ├── particles.rs      # Flight trails, explosion bursts, sparkles, shockwave expansion
+│   ├── background.rs     # 14-band gradient interpolation & twinkle starfield
+│   ├── audio.rs          # Pure mathematical procedural sound synthesizer (WAV header + PCM)
+│   └── ui.rs             # Start screen, Game Over scoreboard, medals, HUD badges, vignettes
 ```
 
 ---
 
-## 🏗️ Cross-Platform Build
+## 💾 Save Data & Persistence
 
-### Desktop (Windows, macOS, Linux)
+All game records are stored locally in the working directory as simple plain-text files:
+
+| File | Content | Format |
+|:---|:---|:---|
+| `highscore.txt` | Highest score ever achieved | Plain integer (e.g., `42`) |
+| `stats.txt` | Lifetime game metrics | Key-value pairs (`games=`, `total_score=`, `total_coins=`) |
+| `achievements.txt` | Unlocked achievement identifiers | Newline-delimited list of unlocked achievement names |
+
+---
+
+## 🏗️ Cross-Platform Compilation Guide
+
+### Windows
 ```bash
+cargo build --release
+# Executable generated at: target/release/flappy-bird-rust.exe
+```
+
+### macOS
+```bash
+cargo build --release
+# Executable generated at: target/release/flappy-bird-rust
+```
+
+### Linux (Ubuntu / Debian)
+Install standard development and graphics libraries:
+```bash
+sudo apt-get update
+sudo apt-get install -y pkg-config libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev
 cargo build --release
 ```
 
-### WebAssembly (WASM for Web)
+### WebAssembly (WASM Browser Build)
+Compile directly to WebAssembly for seamless in-browser play:
 ```bash
-# Add WebAssembly target
+# 1. Add WASM target
 rustup target add wasm32-unknown-unknown
 
-# Build release WASM binary
+# 2. Build release binary
 cargo build --release --target wasm32-unknown-unknown
+
+# 3. Serve via local HTTP server
+# (Using python, basic-http-server, or miniserve)
+python3 -m http.server 8080
 ```
+
+---
+
+## 🤝 Contributing
+
+Contributions are warmly welcome! Whether reporting a bug, proposing a new skin, fine-tuning physics, or adding new achievements:
+
+1. **Fork** the repository
+2. **Create a branch**: `git checkout -b feature/awesome-feature`
+3. **Commit your changes**: `git commit -m "Add awesome feature"`
+4. **Push to branch**: `git push origin feature/awesome-feature`
+5. **Open a Pull Request**
 
 ---
 
 ## 📜 License
 
-Open source under the [MIT License](LICENSE).
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete details.
+
+<div align="center">
+  <sub>Built with ❤️ and 🦀 in Rust using Macroquad.</sub>
+</div>
