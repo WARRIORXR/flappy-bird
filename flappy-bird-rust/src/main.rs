@@ -427,7 +427,7 @@ async fn main() {
         clear_background(BLACK);
 
         let cam = Camera2D {
-            zoom: vec2(2.0 / GAME_WIDTH, -2.0 / GAME_HEIGHT),
+            zoom: vec2(2.0 / GAME_WIDTH, 2.0 / GAME_HEIGHT),
             target: vec2(GAME_WIDTH / 2.0 + shake_x, GAME_HEIGHT / 2.0 + shake_y),
             viewport: Some((vp_x, vp_y, vp_w, vp_h)),
             ..Default::default()

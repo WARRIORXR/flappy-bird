@@ -88,8 +88,8 @@
 
 | Platform | File | Direct Download Link | Size |
 |:---|:---|:---:|:---:|
-| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download Latest .exe**](https://github.com/WARRIORXR/flappy-bird/releases/latest/download/flappy-bird-rust.exe) | ~642 KB |
-| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~642 KB |
+| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download Latest .exe**](https://github.com/WARRIORXR/flappy-bird/releases/latest/download/flappy-bird-rust.exe) | ~818 KB |
+| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~818 KB |
 
 *Double-click `flappy-bird-rust.exe` to play instantly!*
 

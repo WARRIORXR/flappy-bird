@@ -35,7 +35,7 @@ fn create_wav(sample_rate: u32, samples: &[i16]) -> Vec<u8> {
 
 impl AudioManager {
     pub async fn new() -> Self {
-        let sr = 22050;
+        let sr = 44100;
 
         // Flap tone: short rising sine wave
         let flap_len = (sr as f32 * 0.1) as usize;
@@ -44,7 +44,7 @@ impl AudioManager {
             let t = i as f32 / sr as f32;
             let freq = 400.0 + t * 2000.0;
             let env = 1.0 - (i as f32 / flap_len as f32);
-            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 12000.0) as i16;
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 14000.0) as i16;
             flap_samples.push(val);
         }
         let flap_bytes = create_wav(sr, &flap_samples);
@@ -57,7 +57,7 @@ impl AudioManager {
             let t = i as f32 / sr as f32;
             let freq = if t < 0.08 { 650.0 } else { 920.0 };
             let env = 1.0 - (i as f32 / score_len as f32);
-            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 14000.0) as i16;
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 16000.0) as i16;
             score_samples.push(val);
         }
         let score_bytes = create_wav(sr, &score_samples);
@@ -71,9 +71,9 @@ impl AudioManager {
             let freq = (220.0 - t * 450.0).max(50.0);
             let env = 1.0 - (i as f32 / hit_len as f32);
             let val = if (t * freq * std::f32::consts::TAU).sin() > 0.0 {
-                (env * 15000.0) as i16
+                (env * 16000.0) as i16
             } else {
-                (-env * 15000.0) as i16
+                (-env * 16000.0) as i16
             };
             hit_samples.push(val);
         }
@@ -92,7 +92,7 @@ impl AudioManager {
                 _ => 783.99, // G5
             };
             let env = (1.0 - (i as f32 / pup_len as f32)).powf(0.5);
-            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 13000.0) as i16;
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 15000.0) as i16;
             pup_samples.push(val);
         }
         let pup_bytes = create_wav(sr, &pup_samples);
@@ -105,8 +105,8 @@ impl AudioManager {
             let t = i as f32 / sr as f32;
             let freq = (800.0 - t * 1800.0).max(100.0);
             let env = (1.0 - (i as f32 / sb_len as f32)).powf(1.5);
-            let noise = ((t * 12345.67).sin() * 4000.0) as i16;
-            let tone = ((t * freq * std::f32::consts::TAU).sin() * env * 12000.0) as i16;
+            let noise = ((t * 12345.67).sin() * 5000.0) as i16;
+            let tone = ((t * freq * std::f32::consts::TAU).sin() * env * 14000.0) as i16;
             sb_samples.push(tone.saturating_add(noise));
         }
         let sb_bytes = create_wav(sr, &sb_samples);
