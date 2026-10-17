@@ -88,8 +88,8 @@
 
 | Platform | File | Direct Download Link | Size |
 |:---|:---|:---:|:---:|
-| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download Latest .exe**](https://github.com/WARRIORXR/flappy-bird/releases/latest/download/flappy-bird-rust.exe) | ~818 KB |
-| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~818 KB |
+| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download v1.1.0 .exe**](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.1.0/flappy-bird-rust.exe) | ~830 KB |
+| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~830 KB |
 
 *Double-click `flappy-bird-rust.exe` to play instantly!*
 
@@ -98,7 +98,7 @@
 ## 🚀 Quick Start
 
 ### Play Immediately (No Installation)
-Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/latest/download/flappy-bird-rust.exe) and double-click to launch!
+Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.1.0/flappy-bird-rust.exe) and double-click to launch!
 
 ### Build from Source
 Make sure you have the Rust toolchain installed (1.70 or higher). If needed, install via [rustup.rs](https://rustup.rs):
@@ -124,6 +124,7 @@ cargo run --release
 | <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | In-Game | **Flap wings** (upward velocity burst) |
 | <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | Start / Game Over | **Start / Replay game** |
 | <kbd>P</kbd> | Playing | **Pause / Unpause game** |
+| <kbd>N</kbd> | Start / Playing | **Cycle Sky / Celestial Cycle** (`Auto` ➔ `Day` ➔ `Sunset` ➔ `Night` ➔ `Dawn`) |
 | <kbd>M</kbd> | Any screen | **Toggle audio mute / unmute** |
 | <kbd>D</kbd> | Start Screen | **Cycle Difficulty** (`Easy` ➔ `Normal` ➔ `Hard`) |
 | <kbd>C</kbd> | Start Screen | **Cycle Bird Skin** (`Classic` ➔ `Blue` ➔ `Red` ➔ `Green` ➔ `Purple`) |
@@ -189,9 +190,13 @@ The weather system alters atmospheric visuals with drifting particle simulations
 | **Normal** | 150 px | 1.00× | None | Classic arcade balance with progressing challenge |
 | **Hard** | 125 px | 1.25× | **+1 bonus point per pipe passed** | Tight clearance, rapid reflexes, high score grinding |
 
-- **Combo Counter**: Passing pipes without collision builds combo streaks (`x3`, `x5`, `x10+`), highlighted with color-coded HUD badges.
-- **Coin Value**: Each collected coin awards **2 bonus points** (or **4 points** when Double Score is active).
-- **Medal Ranks**:
+#### 💰 Score Bonuses & Risk-Reward Mechanics (v1.1.0)
+- 🌟 **Lucky Golden Pipes (15% spawn chance)**: Shimmering metallic gold pipes that award **+5 points** and trigger an ascending major-scale fanfare, radiating burst particles and gold floating indicators.
+- ⚡ **Close Shave / Near-Miss Bonus**: Skimming within **14 pixels** of pipe lips without hitting awards **+2 bonus points**, accompanied by a razor-sharp aerodynamic whoosh sound, spark friction particles, and a cyan `CLOSE SHAVE! +2` popup.
+- 🔤 **Floating Score Popups**: Dynamic floating text indicators (`+1`, `+5 GOLDEN!`, `+2 CLOSE SHAVE!`, `+2 COIN`) drift upward with drop shadows and fade smoothly.
+- 🔥 **Combo Streaks**: Flawless consecutive pipe clearances build combo badges (`x3`, `x5`, `x10`, `x15`, `x20+`) scaling dynamically in the HUD.
+- 🪙 **Coin Economy**: Each collected coin awards **2 bonus points** (or **4 points** when Double Score is active).
+- 🏅 **Medal Ranks**:
   - 🥉 **Bronze**: Score 10+
   - 🥈 **Silver**: Score 20+
   - 🥇 **Gold**: Score 30+
@@ -213,29 +218,33 @@ Cycle skins instantly on the start menu with <kbd>C</kbd>. Each skin alters the 
 
 ---
 
-### 🌅 Day / Sunset / Night Celestial Cycle
+### 🌅 Dynamic Day / Night Celestial Cycle (v1.1.0)
 
-The sky environment continuously evaluates score to smoothly morph atmospheric gradients across 14 blended horizon bands:
-1. **Day** (Scores 0–14): Vivid cyan skies and soft blue horizon.
-2. **Sunset** (Scores 15–26): Fiery orange and warm peach sunset gradients.
-3. **Night** (Scores 27–40): Deep cosmic navy featuring 40 procedural twinkling stars.
-4. *Repeats every 40 points smoothly.*
+The sky engine continuously computes celestial positioning and interpolates atmospheric gradients across four continuous time-of-day phases:
+1. 🌅 **Dawn**: Gentle lavender-pink and peach horizon with morning twilight glow.
+2. ☀️ **Day**: Radiant azure skies featuring a brilliant sun with shimmering corona and rotating solar rays.
+3. 🌇 **Sunset**: Burning crimson and golden-amber gradient horizon as dusk settles.
+4. 🌙 **Night**: Deep cosmic indigo sky with **50 twinkling stars**, a cratered crescent moon, and periodic diagonal **shooting stars (meteors)** streaking across the sky.
+
+> ⌨️ **Manual Sky Control**: Press <kbd>N</kbd> at any time (on Start or during active runs) to instantly cycle between `AUTO` (progresses every 50 points), `DAY`, `SUNSET`, `NIGHT`, or `DAWN`!
 
 ---
 
 ### 🔊 In-Memory Procedural Audio Synthesizer
 
-The audio engine (`audio.rs`) synthesizes raw PCM audio into standard 22,050 Hz 16-bit mono RIFF/WAVE binary byte sequences at launch:
+The audio engine (`audio.rs`) synthesizes raw PCM audio into standard **44,100 Hz 16-bit mono RIFF/WAVE** binary buffers at launch for crystal-clear playback on all Windows audio drivers:
 
 ```
-[44-byte RIFF/WAVE Header] ➔ [16-bit PCM Audio Sample Buffer] ➔ macroquad::audio::load_sound_from_bytes
+[44-byte RIFF/WAVE Header] ➔ [44.1 kHz 16-bit PCM Audio Sample Buffer] ➔ macroquad::audio::load_sound_from_bytes
 ```
 
-- **Flap**: Rapid rising frequency sine wave ($400\text{ Hz} \rightarrow 2400\text{ Hz}$) with linear decay envelope.
+- **Flap**: Rapid rising frequency chirp ($400\text{ Hz} \rightarrow 2400\text{ Hz}$) with linear decay envelope.
 - **Score Chime**: Dual-tone musical harmonic ($650\text{ Hz} \rightarrow 920\text{ Hz}$) with lingering ring.
-- **Hit**: Descending square buzz ($220\text{ Hz} \rightarrow 50\text{ Hz}$) simulating sudden impact.
-- **Power-Up**: Fast 3-step ascending major chord arpeggio ($C_5 \rightarrow E_5 \rightarrow G_5$).
-- **Shield Break**: High-frequency harmonic chirp ($800\text{ Hz} \rightarrow 100\text{ Hz}$) mixed with high-entropy white noise crunch.
+- **Golden Fanfare (New)**: 4-note ascending major arpeggio ($C_5 \rightarrow E_5 \rightarrow G_5 \rightarrow C_6$) for Golden Pipes.
+- **Close Shave Whoosh (New)**: High-speed Doppler aerodynamic frequency sweep ($1200\text{ Hz} \rightarrow 300\text{ Hz}$).
+- **Hit**: Descending square buzz ($220\text{ Hz} \rightarrow 50\text{ Hz}$) simulating sudden collision impact.
+- **Power-Up**: Harmonic 3-step chord progression ($C_5 \rightarrow E_5 \rightarrow G_5$).
+- **Shield Break**: High-frequency resonant fracture ($800\text{ Hz} \rightarrow 100\text{ Hz}$) blended with high-entropy white noise crunch.
 
 ---
 
@@ -246,6 +255,7 @@ The audio engine (`audio.rs`) synthesizes raw PCM audio into standard 22,050 Hz 
 - **Shockwave Ripples**: Expanding polygon rings on shield breakage and power-up acquisition.
 - **Screen Shake**: Decaying random camera jitter on impacts and shield destruction.
 - **Vignettes**: Distinct edge overlays signaling active time dilation or score doubling.
+- **Spark & Smoke Particles**: Friction sparks on near misses, golden sparkles on bonuses, and trail smoke behind the bird.
 
 ---
 

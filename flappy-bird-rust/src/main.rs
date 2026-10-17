@@ -26,7 +26,7 @@ use powerups::PowerUpManager;
 use weather::{WeatherSystem, WeatherType};
 use achievements::{AchievementManager, Achievement};
 use ui::{
-    Difficulty, ScoreFlash, GameStats, draw_start_screen, draw_game_over,
+    Difficulty, ScoreFlash, PopupManager, GameStats, draw_start_screen, draw_game_over,
     draw_hud, draw_speed_lines, draw_slowmo_vignette,
 };
 
@@ -134,12 +134,13 @@ fn check_score_events(
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut audio = AudioManager::new().await;
-    let bg = Background::new();
+    let mut bg = Background::new();
     let mut clouds = CloudManager::new();
     let mut ground = Ground::new();
     let mut particles = ParticleSystem::new();
     let mut weather = WeatherSystem::new();
     let mut achievements = AchievementManager::new();
+    let mut popups = PopupManager::new();
 
     let mut skin = BirdSkin::Classic;
     let mut bird = Bird::new_with_skin(skin);
@@ -168,6 +169,8 @@ async fn main() {
         game_time += raw_dt;
         score_flash.update(raw_dt);
         achievements.update(raw_dt);
+        popups.update(raw_dt);
+        bg.update(raw_dt);
 
         // ── Input: toggles ──────────────────────────────────────────────
         if is_key_pressed(KeyCode::F) {
@@ -176,6 +179,13 @@ async fn main() {
 
         if is_key_pressed(KeyCode::M) {
             audio.toggle_mute();
+        }
+
+        if is_key_pressed(KeyCode::N) {
+            let mode = bg.cycle_mode();
+            if state == GameState::Playing {
+                popups.add(format!("Sky: {}", mode.name()), GAME_WIDTH / 2.0, 100.0, Color::from_rgba(255, 230, 130, 255), 16.0);
+            }
         }
 
         if is_key_pressed(KeyCode::P) && state == GameState::Playing {
@@ -243,7 +253,7 @@ async fn main() {
                         mult
                     };
 
-                    let (scored, spawned_gap) = pipes.update(effective_dt, &mut score, bird.x, game_time);
+                    let (pipe_score_ev, spawned_gap) = pipes.update(effective_dt, &mut score, bird.x, game_time);
 
                     // Spawn coins & powerups when new pipes appear
                     if let Some((px, top_h, bot_y)) = spawned_gap {
@@ -251,17 +261,57 @@ async fn main() {
                         powerups.spawn_for_pipe(px, top_h, bot_y);
                     }
 
-                    if scored {
-                        // Apply score multiplier (pipe already gave 1 point, add bonus)
+                    if let Some(ev) = pipe_score_ev {
+                        // Apply score multiplier (ev.points is already added once by pipes.update)
                         if score_multiplier > 1 {
-                            score += score_multiplier - 1; // already got 1 from pipe
+                            score += ev.points * (score_multiplier - 1);
                         }
 
+                        let total_pts = ev.points * score_multiplier;
                         combo += 1;
-                        audio.play_score();
-                        particles.add_sparkle(bird.x + BIRD_WIDTH + 10.0, bird.y);
-                        score_flash_white = 0.15;
 
+                        if ev.is_golden {
+                            audio.play_golden();
+                            popups.add(
+                                format!("+{} GOLDEN PIPE!", total_pts),
+                                ev.x,
+                                ev.y,
+                                Color::from_rgba(255, 215, 0, 255),
+                                18.0,
+                            );
+                            score_flash.trigger("GOLDEN PIPE! +5");
+                            particles.add_powerup_burst(ev.x, ev.y, Color::from_rgba(255, 215, 0, 255));
+                            score_flash_white = 0.25;
+                        } else {
+                            audio.play_score();
+                            popups.add(
+                                format!("+{}", total_pts),
+                                ev.x,
+                                ev.y,
+                                WHITE,
+                                16.0,
+                            );
+                            particles.add_sparkle(bird.x + BIRD_WIDTH + 10.0, bird.y);
+                            score_flash_white = 0.15;
+                        }
+
+                        check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
+                    }
+
+                    // Check for Close Shave near-miss bonus (+2 points)
+                    if let Some((sx, sy)) = pipes.check_close_shave(bird.x, bird.y) {
+                        let shave_pts = 2 * score_multiplier;
+                        score += shave_pts;
+                        audio.play_close_shave();
+                        particles.add_sparkle(sx, sy);
+                        particles.add_sparkle(sx + 5.0, sy - 5.0);
+                        popups.add(
+                            format!("+{} CLOSE SHAVE!", shave_pts),
+                            sx,
+                            sy - 15.0,
+                            Color::from_rgba(64, 224, 255, 255),
+                            16.0,
+                        );
                         check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
                     }
 
@@ -291,6 +341,13 @@ async fn main() {
                         score += coin_bonus;
                         audio.play_score();
                         particles.add_sparkle(bird.x + BIRD_WIDTH / 2.0, bird.y - 10.0);
+                        popups.add(
+                            format!("+{} COIN", coin_bonus),
+                            bird.x + BIRD_WIDTH / 2.0,
+                            bird.y - 20.0,
+                            Color::from_rgba(255, 215, 0, 255),
+                            15.0,
+                        );
 
                         // Check coin achievements
                         if coins_this_game >= 10 {
@@ -474,6 +531,9 @@ async fn main() {
             draw_rectangle(GAME_WIDTH - 6.0, 0.0, 6.0, GAME_HEIGHT, edge_col);
         }
 
+        // Floating score & bonus popups
+        popups.draw();
+
         // ── HUD / Overlays ──────────────────────────────────────────────
         match state {
             GameState::Start => draw_start_screen(
@@ -481,6 +541,7 @@ async fn main() {
                 difficulty,
                 skin,
                 weather.current,
+                bg.mode,
                 audio.muted,
                 &stats,
                 &achievements,

@@ -4,6 +4,7 @@ use crate::bird::BirdSkin;
 use crate::weather::WeatherType;
 use crate::powerups::PowerUpManager;
 use crate::achievements::AchievementManager;
+use crate::background::TimeOfDay;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Difficulty {
@@ -93,6 +94,61 @@ impl ScoreFlash {
     }
 }
 
+/// Floating score / bonus popup indicator
+pub struct PopupText {
+    pub text: String,
+    pub x: f32,
+    pub y: f32,
+    pub color: Color,
+    pub font_size: f32,
+    pub timer: f32,
+    pub max_timer: f32,
+    pub vy: f32,
+}
+
+pub struct PopupManager {
+    pub popups: Vec<PopupText>,
+}
+
+impl PopupManager {
+    pub fn new() -> Self {
+        Self { popups: Vec::new() }
+    }
+
+    pub fn add(&mut self, text: impl Into<String>, x: f32, y: f32, color: Color, font_size: f32) {
+        self.popups.push(PopupText {
+            text: text.into(),
+            x,
+            y,
+            color,
+            font_size,
+            timer: 1.0,
+            max_timer: 1.0,
+            vy: -48.0,
+        });
+    }
+
+    pub fn update(&mut self, dt: f32) {
+        for p in self.popups.iter_mut() {
+            p.timer -= dt;
+            p.y += p.vy * dt;
+        }
+        self.popups.retain(|p| p.timer > 0.0);
+    }
+
+    pub fn draw(&self) {
+        for p in &self.popups {
+            let alpha = (p.timer / p.max_timer).clamp(0.0, 1.0);
+            let col = Color::new(p.color.r, p.color.g, p.color.b, p.color.a * alpha);
+            let shadow_col = Color::new(0.0, 0.0, 0.0, 0.7 * alpha);
+            let dim = measure_text(&p.text, None, p.font_size as u16, 1.0);
+            let px = p.x - dim.width / 2.0;
+            draw_text(&p.text, px + 1.5, p.y + 1.5, p.font_size, shadow_col);
+            draw_text(&p.text, px, p.y, p.font_size, col);
+        }
+    }
+}
+
 /// Persistent game statistics
 pub struct GameStats {
     pub games_played: u32,
@@ -134,11 +190,13 @@ impl GameStats {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_start_screen(
     time: f32,
     difficulty: Difficulty,
     skin: BirdSkin,
     weather: WeatherType,
+    time_of_day: TimeOfDay,
     muted: bool,
     stats: &GameStats,
     achievements: &AchievementManager,
@@ -176,39 +234,51 @@ pub fn draw_start_screen(
     draw_text(msg, (GAME_WIDTH - m_dim.width) / 2.0, 360.0, 22.0, Color::new(1.0, 1.0, 1.0, alpha));
 
     // Options Panel
-    let opt_y = 405.0;
+    let opt_y = 398.0;
 
     // Difficulty Selector
     let diff_text = format!("Difficulty: [{}]  (D)", difficulty.name());
-    let d_dim = measure_text(&diff_text, None, 16, 1.0);
+    let d_dim = measure_text(&diff_text, None, 15, 1.0);
     let diff_color = match difficulty {
         Difficulty::Easy => Color::from_rgba(100, 220, 100, 255),
         Difficulty::Normal => Color::from_rgba(255, 215, 0, 255),
         Difficulty::Hard => Color::from_rgba(255, 80, 80, 255),
     };
-    draw_text(&diff_text, (GAME_WIDTH - d_dim.width) / 2.0, opt_y, 16.0, diff_color);
+    draw_text(&diff_text, (GAME_WIDTH - d_dim.width) / 2.0, opt_y, 15.0, diff_color);
 
     // Bird Skin selector
     let skin_text = format!("Bird: [{}]  (C)", skin.name());
-    let sk_dim = measure_text(&skin_text, None, 16, 1.0);
+    let sk_dim = measure_text(&skin_text, None, 15, 1.0);
     let (sk_col, _, _, _) = skin.colors();
-    draw_text(&skin_text, (GAME_WIDTH - sk_dim.width) / 2.0, opt_y + 24.0, 16.0, sk_col);
+    draw_text(&skin_text, (GAME_WIDTH - sk_dim.width) / 2.0, opt_y + 22.0, 15.0, sk_col);
 
     // Weather selector
     let w_text = format!("Weather: [{}]  (W)", weather.name());
-    let w_dim = measure_text(&w_text, None, 16, 1.0);
-    draw_text(&w_text, (GAME_WIDTH - w_dim.width) / 2.0, opt_y + 48.0, 16.0, Color::from_rgba(160, 220, 255, 255));
+    let w_dim = measure_text(&w_text, None, 15, 1.0);
+    draw_text(&w_text, (GAME_WIDTH - w_dim.width) / 2.0, opt_y + 44.0, 15.0, Color::from_rgba(160, 220, 255, 255));
+
+    // Time of Day selector
+    let tod_text = format!("Sky: [{}]  (N)", time_of_day.name());
+    let tod_dim = measure_text(&tod_text, None, 15, 1.0);
+    let tod_col = match time_of_day {
+        TimeOfDay::Auto => Color::from_rgba(180, 220, 255, 255),
+        TimeOfDay::Day => Color::from_rgba(255, 230, 130, 255),
+        TimeOfDay::Sunset => Color::from_rgba(255, 140, 80, 255),
+        TimeOfDay::Night => Color::from_rgba(160, 170, 255, 255),
+        TimeOfDay::Dawn => Color::from_rgba(255, 180, 200, 255),
+    };
+    draw_text(&tod_text, (GAME_WIDTH - tod_dim.width) / 2.0, opt_y + 66.0, 15.0, tod_col);
 
     // Audio status
     let audio_label = if muted { "Audio: [MUTED]  (M)" } else { "Audio: [ON]  (M)" };
     let a_dim = measure_text(audio_label, None, 15, 1.0);
     let audio_color = if muted { Color::from_rgba(255, 120, 120, 255) } else { Color::from_rgba(180, 255, 180, 255) };
-    draw_text(audio_label, (GAME_WIDTH - a_dim.width) / 2.0, opt_y + 70.0, 15.0, audio_color);
+    draw_text(audio_label, (GAME_WIDTH - a_dim.width) / 2.0, opt_y + 88.0, 15.0, audio_color);
 
     // Controls hint
     let hint = "P: Pause | F: FPS | R: Restart";
     let h_dim = measure_text(hint, None, 13, 1.0);
-    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, opt_y + 96.0, 13.0, Color::from_rgba(180, 180, 180, 190));
+    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, opt_y + 112.0, 13.0, Color::from_rgba(180, 180, 180, 190));
 
     // Stats box at bottom
     if stats.games_played > 0 {

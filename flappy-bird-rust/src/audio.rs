@@ -6,6 +6,8 @@ pub struct AudioManager {
     pub hit_sound: Option<Sound>,
     pub powerup_sound: Option<Sound>,
     pub shield_break_sound: Option<Sound>,
+    pub golden_sound: Option<Sound>,
+    pub close_shave_sound: Option<Sound>,
     pub muted: bool,
 }
 
@@ -112,12 +114,46 @@ impl AudioManager {
         let sb_bytes = create_wav(sr, &sb_samples);
         let shield_break_sound = load_sound_from_bytes(&sb_bytes).await.ok();
 
+        // Golden pipe score fanfare: 4-note ascending major arpeggio
+        let gold_len = (sr as f32 * 0.32) as usize;
+        let mut gold_samples = Vec::with_capacity(gold_len);
+        for i in 0..gold_len {
+            let t = i as f32 / sr as f32;
+            let step = (t * 16.0) as usize;
+            let freq = match step.min(3) {
+                0 => 523.25,  // C5
+                1 => 659.25,  // E5
+                2 => 783.99,  // G5
+                _ => 1046.50, // C6
+            };
+            let env = (1.0 - (i as f32 / gold_len as f32)).powf(0.8);
+            let tone = ((t * freq * std::f32::consts::TAU).sin() * env * 16000.0) as i16;
+            gold_samples.push(tone);
+        }
+        let gold_bytes = create_wav(sr, &gold_samples);
+        let golden_sound = load_sound_from_bytes(&gold_bytes).await.ok();
+
+        // Close shave sound: fast whoosh chirp
+        let cs_len = (sr as f32 * 0.12) as usize;
+        let mut cs_samples = Vec::with_capacity(cs_len);
+        for i in 0..cs_len {
+            let t = i as f32 / sr as f32;
+            let freq = 1100.0 + t * 2400.0;
+            let env = (1.0 - (i as f32 / cs_len as f32)).powf(1.2);
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 13000.0) as i16;
+            cs_samples.push(val);
+        }
+        let cs_bytes = create_wav(sr, &cs_samples);
+        let close_shave_sound = load_sound_from_bytes(&cs_bytes).await.ok();
+
         Self {
             flap_sound,
             score_sound,
             hit_sound,
             powerup_sound,
             shield_break_sound,
+            golden_sound,
+            close_shave_sound,
             muted: false,
         }
     }
@@ -141,6 +177,24 @@ impl AudioManager {
             return;
         }
         if let Some(snd) = &self.score_sound {
+            play_sound_once(snd);
+        }
+    }
+
+    pub fn play_golden(&self) {
+        if self.muted {
+            return;
+        }
+        if let Some(snd) = &self.golden_sound {
+            play_sound_once(snd);
+        }
+    }
+
+    pub fn play_close_shave(&self) {
+        if self.muted {
+            return;
+        }
+        if let Some(snd) = &self.close_shave_sound {
             play_sound_once(snd);
         }
     }
