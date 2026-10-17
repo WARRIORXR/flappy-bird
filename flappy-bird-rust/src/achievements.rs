@@ -98,6 +98,13 @@ impl AchievementManager {
         self.shields_used = 0;
     }
 
+    pub fn record_shield_used(&mut self) {
+        self.shields_used += 1;
+        if self.shields_used >= 3 {
+            self.try_unlock(Achievement::ShieldMaster);
+        }
+    }
+
     fn load_unlocked() -> Vec<Achievement> {
         let contents = std::fs::read_to_string("achievements.txt").unwrap_or_default();
         let mut result = Vec::new();

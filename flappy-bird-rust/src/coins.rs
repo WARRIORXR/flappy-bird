@@ -73,9 +73,9 @@ impl CoinManager {
                 let dist = (dx * dx + dy * dy).sqrt();
 
                 if dist < 280.0 && dist > 1.0 {
-                    let pull = (320.0 / dist).clamp(4.0, 16.0);
-                    coin.x += (dx / dist) * pull * dt * 60.0;
-                    coin.y += (dy / dist) * pull * dt * 60.0;
+                    let pull = (260.0 / dist).clamp(5.0, 14.0);
+                    coin.x += (dx / dist) * pull * dt;
+                    coin.y += (dy / dist) * pull * dt;
                 }
             }
 

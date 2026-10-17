@@ -6,6 +6,7 @@
 
 [![Rust](https://img.shields.io/badge/Rust-1.70%2B-dea584.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
 [![Macroquad](https://img.shields.io/badge/Framework-Macroquad%200.4-2575fc.svg?style=for-the-badge)](https://macroquad.rs/)
+[![Latest Release](https://img.shields.io/github/v/release/WARRIORXR/flappy-bird?style=for-the-badge&logo=github&color=007ec6)](https://github.com/WARRIORXR/flappy-bird/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20WASM-34a853.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird/pulls)
@@ -22,6 +23,8 @@
 ## 📑 Table of Contents
 
 - [Overview & Philosophy](#-overview--philosophy)
+- [📸 Game Photos](#-game-photos)
+- [📦 Download Executable](#-download-executable)
 - [Quick Start](#-quick-start)
 - [Controls](#-controls)
 - [Deep Gameplay Systems](#-deep-gameplay-systems)
@@ -56,15 +59,53 @@
 
 ---
 
+## 📸 Game Photos
+
+<div align="center">
+
+| Start Screen | Active Gameplay |
+|:---:|:---:|
+| <img src="screenshots/start_screen.png" width="340" alt="Start Screen with Skin & Difficulty Selection" /> | <img src="screenshots/gameplay_action.png" width="340" alt="Active Gameplay through Oscillating Pipes" /> |
+| *Start Screen with Skin, Difficulty & Weather Selector* | *Active Run navigating through Pipe Gaps* |
+
+| Power-Ups Active | Atmospheric Weather |
+|:---:|:---:|
+| <img src="screenshots/powerups.png" width="340" alt="Energy Shield Bubble & Power-Up Orbs" /> | <img src="screenshots/weather_effects.png" width="340" alt="Rain Weather Particle Simulation" /> |
+| *Energy Shield Bubble & Floating Power-Up Orbs* | *Dynamic Rain Particles with Ground Splashes* |
+
+| Game Over Scoreboard | Night Mode Celestial Cycle |
+|:---:|:---:|
+| <img src="screenshots/game_over.png" width="340" alt="Game Over Scoreboard with Medal Ranks" /> | <img src="screenshots/night_mode.png" width="340" alt="Night Mode with Twinkling Stars & Fireflies" /> |
+| *Scoreboard with Medals, Best Scores & Achievements* | *Night Sky Cycle with Twinkling Stars & Moon* |
+
+</div>
+
+---
+
+## 📦 Download Executable
+
+> **Ready to Play?** No Rust compiler or toolchain needed! Download the standalone Windows executable directly:
+
+| Platform | File | Direct Download Link | Size |
+|:---|:---|:---:|:---:|
+| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download Latest .exe**](https://github.com/WARRIORXR/flappy-bird/releases/latest/download/flappy-bird-rust.exe) | ~642 KB |
+| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~642 KB |
+
+*Double-click `flappy-bird-rust.exe` to play instantly!*
+
+---
+
 ## 🚀 Quick Start
 
-### Prerequisites
+### Play Immediately (No Installation)
+Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/latest/download/flappy-bird-rust.exe) and double-click to launch!
+
+### Build from Source
 Make sure you have the Rust toolchain installed (1.70 or higher). If needed, install via [rustup.rs](https://rustup.rs):
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-### Clone & Launch
 ```bash
 # Clone the repository
 git clone https://github.com/WARRIORXR/flappy-bird.git
@@ -89,34 +130,6 @@ cargo run --release
 | <kbd>W</kbd> | Start Screen | **Cycle Weather** (`Clear` ➔ `Rain` ➔ `Snow` ➔ `Sakura` ➔ `Firefly`) |
 | <kbd>F</kbd> | Any screen | **Toggle real-time FPS overlay** |
 | <kbd>R</kbd> | Game Over | **Instant quick restart** |
-
----
-
-## 📸 Game Photos
-
-<div align="center">
-
-| | |
-|:---:|:---:|
-| ![Start Screen](screenshots/start_screen.png) | ![Gameplay Action](screenshots/gameplay_action.png) |
-| **Start Screen** | **Gameplay Action** |
-| ![Power-Ups](screenshots/powerups.png) | ![Weather Effects](screenshots/weather_effects.png) |
-| **Power-Ups in Action** | **Weather Effects** |
-| ![Game Over](screenshots/game_over.png) | ![Night Mode](screenshots/night_mode.png) |
-| **Game Over Screen** | **Night Mode with Stars** |
-
-</div>
-
----
-
-## 📦 Download Executable
-
-> **Windows users**: Download the pre-built `.exe` and run it directly — no Rust toolchain needed!
-
-| Platform | File | Size |
-|:---|:---|:---|
-| 🪟 **Windows (x64)** | [`flappy-bird-rust.exe`](flappy-bird-rust.exe) | ~2 MB |
-
 
 ---
 

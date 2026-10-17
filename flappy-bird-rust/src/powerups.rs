@@ -98,19 +98,19 @@ impl PowerUpManager {
         });
     }
 
-    pub fn update(&mut self, dt: f32, pipe_speed: f32, bird_x: f32, bird_y: f32) -> Option<PowerUpType> {
-        // Decrease active timers
+    pub fn update(&mut self, dt: f32, timer_dt: f32, pipe_speed: f32, bird_x: f32, bird_y: f32) -> Option<PowerUpType> {
+        // Decrease active timers using real-time seconds
         if self.magnet_timer > 0.0 {
-            self.magnet_timer = (self.magnet_timer - dt).max(0.0);
+            self.magnet_timer = (self.magnet_timer - timer_dt).max(0.0);
         }
         if self.slowmo_timer > 0.0 {
-            self.slowmo_timer = (self.slowmo_timer - dt).max(0.0);
+            self.slowmo_timer = (self.slowmo_timer - timer_dt).max(0.0);
         }
         if self.invuln_timer > 0.0 {
-            self.invuln_timer = (self.invuln_timer - dt).max(0.0);
+            self.invuln_timer = (self.invuln_timer - timer_dt).max(0.0);
         }
         if self.double_score_timer > 0.0 {
-            self.double_score_timer = (self.double_score_timer - dt).max(0.0);
+            self.double_score_timer = (self.double_score_timer - timer_dt).max(0.0);
         }
 
         let mut collected_type = None;

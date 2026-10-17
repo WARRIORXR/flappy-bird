@@ -1,0 +1,8 @@
+# Target build artifacts
+**/target/
+Cargo.lock
+
+# Save files
+highscore.txt
+stats.txt
+achievements.txt

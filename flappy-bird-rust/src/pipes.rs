@@ -32,17 +32,20 @@ impl PipeManager {
         mgr
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self) -> Vec<(f32, f32, f32)> {
         self.pipes.clear();
+        let mut gaps = Vec::new();
         for i in 0..4 {
             let x = GAME_WIDTH + 100.0 + (i as f32) * PIPE_SPACING;
-            self.spawn_pipe(x, 0);
+            let gap = self.spawn_pipe(x, 0);
+            gaps.push(gap);
         }
+        gaps
     }
 
-    pub fn spawn_pipe(&mut self, x: f32, score: u32) {
+    pub fn spawn_pipe(&mut self, x: f32, score: u32) -> (f32, f32, f32) {
         let min_top = 60.0;
-        let max_top = GAME_HEIGHT - GROUND_HEIGHT - self.gap - 60.0;
+        let max_top = (GAME_HEIGHT - GROUND_HEIGHT - self.gap - 60.0).max(min_top + 10.0);
         let range = (max_top - min_top).max(10.0);
         let top_height = min_top + ::macroquad::rand::gen_range(0.0, range);
 
@@ -59,10 +62,12 @@ impl PipeManager {
             0.0
         };
 
+        let bottom_y = top_height + self.gap;
+
         self.pipes.push(PipePair {
             x,
             top_height,
-            bottom_y: top_height + self.gap,
+            bottom_y,
             scored: false,
             width: PIPE_WIDTH,
             oscillates,
@@ -70,6 +75,8 @@ impl PipeManager {
             osc_phase: ::macroquad::rand::gen_range(0.0, std::f32::consts::TAU),
             osc_amplitude,
         });
+
+        (x, top_height, bottom_y)
     }
 
     pub fn get_speed(&self, score: u32) -> f32 {
@@ -77,7 +84,7 @@ impl PipeManager {
         base * self.speed_mult
     }
 
-    pub fn update(&mut self, dt: f32, score: &mut u32, bird_x: f32, time: f32) -> bool {
+    pub fn update(&mut self, dt: f32, score: &mut u32, bird_x: f32, time: f32) -> (bool, Option<(f32, f32, f32)>) {
         let speed = self.get_speed(*score);
         let mut scored_this_frame = false;
         let current_score = *score;
@@ -88,8 +95,9 @@ impl PipeManager {
             // Apply oscillation
             if p.oscillates {
                 let osc = (time * 1.8 + p.osc_phase).sin() * p.osc_amplitude;
-                // Clamp so pipes don't go off bounds
-                let new_top = (p.osc_center_top + osc).clamp(50.0, GAME_HEIGHT - GROUND_HEIGHT - self.gap - 50.0);
+                // Clamp safely so pipes don't go off bounds
+                let max_bound = (GAME_HEIGHT - GROUND_HEIGHT - self.gap - 50.0).max(50.0);
+                let new_top = (p.osc_center_top + osc).clamp(50.0, max_bound);
                 p.top_height = new_top;
                 p.bottom_y = new_top + self.gap;
             }
@@ -103,14 +111,16 @@ impl PipeManager {
 
         self.pipes.retain(|p| p.x + p.width >= -20.0);
 
+        let mut spawned_gap = None;
         if let Some(last) = self.pipes.last() {
             if last.x < GAME_WIDTH - PIPE_SPACING + PIPE_WIDTH {
                 let next_x = last.x + PIPE_SPACING;
-                self.spawn_pipe(next_x, current_score);
+                let gap = self.spawn_pipe(next_x, current_score);
+                spawned_gap = Some(gap);
             }
         }
 
-        scored_this_frame
+        (scored_this_frame, spawned_gap)
     }
 
     pub fn draw(&self, time: f32) {
@@ -169,10 +179,5 @@ impl PipeManager {
                 );
             }
         }
-    }
-
-    /// Get the gap center of a recently spawned pipe (for coin spawning)
-    pub fn last_spawned_gap(&self) -> Option<(f32, f32, f32)> {
-        self.pipes.last().map(|p| (p.x, p.top_height, p.bottom_y))
     }
 }

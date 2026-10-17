@@ -67,15 +67,14 @@ fn check_collision(bird: &Bird, pipes: &PipeManager) -> bool {
     let bw = BIRD_WIDTH - margin * 2.0;
     let bh = BIRD_HEIGHT - margin * 2.0;
 
-    if by <= 0.0 || by + bh >= GAME_HEIGHT - GROUND_HEIGHT {
+    // Generous top ceiling boundary to avoid unfair instant death on subtle brush
+    if by <= -15.0 || by + bh >= GAME_HEIGHT - GROUND_HEIGHT {
         return true;
     }
 
     for p in &pipes.pipes {
-        if bx + bw > p.x && bx < p.x + p.width {
-            if by < p.top_height || by + bh > p.bottom_y {
-                return true;
-            }
+        if bx + bw > p.x && bx < p.x + p.width && (by < p.top_height || by + bh > p.bottom_y) {
+            return true;
         }
     }
 
@@ -91,6 +90,44 @@ fn check_milestone(score: u32) -> Option<&'static str> {
         75  => Some("INSANE! 75!"),
         100 => Some("GOD MODE! 100!"),
         _   => None,
+    }
+}
+
+/// Check milestones, achievements, and dynamic weather when score increases
+fn check_score_events(
+    score: u32,
+    difficulty: Difficulty,
+    weather: &mut WeatherSystem,
+    achievements: &mut AchievementManager,
+    score_flash: &mut ScoreFlash,
+    combo: u32,
+) {
+    if let Some(msg) = check_milestone(score) {
+        score_flash.trigger(msg);
+    }
+
+    if score >= 1 { achievements.try_unlock(Achievement::FirstFlight); }
+    if score >= 25 { achievements.try_unlock(Achievement::Survivor); }
+    if score >= 100 { achievements.try_unlock(Achievement::Centurion); }
+    if score >= 50 && difficulty == Difficulty::Hard {
+        achievements.try_unlock(Achievement::SpeedDemon);
+    }
+    if combo >= 20 {
+        achievements.try_unlock(Achievement::Perfectionist);
+    }
+    if score >= 30 && weather.current != WeatherType::Clear {
+        achievements.try_unlock(Achievement::WeatherWarrior);
+    }
+
+    // Automatic subtle weather transition at score milestones
+    if score == 20 && weather.current == WeatherType::Clear {
+        weather.set_weather(WeatherType::Rain);
+    } else if score == 40 && weather.current == WeatherType::Rain {
+        weather.set_weather(WeatherType::Snow);
+    } else if score == 60 && weather.current == WeatherType::Snow {
+        weather.set_weather(WeatherType::Sakura);
+    } else if score == 80 && weather.current == WeatherType::Sakura {
+        weather.set_weather(WeatherType::Firefly);
     }
 }
 
@@ -121,12 +158,9 @@ async fn main() {
     let mut show_fps = false;
     let mut combo = 0u32;        // consecutive pipes passed
     let mut coins_this_game = 0u32;
-    let mut shields_used_this_game = 0u32;
-
     let mut screen_shake = 0.0f32;
     let mut score_flash_white = 0.0f32; // brief white flash on score
     let mut game_time = 0.0f32;
-    let mut last_pipe_count = 0usize; // track when new pipes spawn for coin & powerup generation
 
     loop {
         let raw_dt = get_frame_time();
@@ -177,13 +211,16 @@ async fn main() {
                     score = 0;
                     combo = 0;
                     coins_this_game = 0;
-                    shields_used_this_game = 0;
                     bird = Bird::new_with_skin(skin);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
+                    let initial_gaps = pipes.reset();
                     coin_mgr.reset();
                     powerups.reset();
                     achievements.reset_per_game();
-                    last_pipe_count = pipes.pipes.len();
+                    for gap in initial_gaps.iter().skip(1) {
+                        coin_mgr.spawn_for_pipe(gap.0, gap.1, gap.2);
+                        powerups.spawn_for_pipe(gap.0, gap.1, gap.2);
+                    }
                     bird.flap();
                     audio.play_flap();
                 }
@@ -206,16 +243,13 @@ async fn main() {
                         mult
                     };
 
-                    let scored = pipes.update(effective_dt, &mut score, bird.x, game_time);
+                    let (scored, spawned_gap) = pipes.update(effective_dt, &mut score, bird.x, game_time);
 
                     // Spawn coins & powerups when new pipes appear
-                    if pipes.pipes.len() > last_pipe_count {
-                        if let Some((px, top_h, bot_y)) = pipes.last_spawned_gap() {
-                            coin_mgr.spawn_for_pipe(px, top_h, bot_y);
-                            powerups.spawn_for_pipe(px, top_h, bot_y);
-                        }
+                    if let Some((px, top_h, bot_y)) = spawned_gap {
+                        coin_mgr.spawn_for_pipe(px, top_h, bot_y);
+                        powerups.spawn_for_pipe(px, top_h, bot_y);
                     }
-                    last_pipe_count = pipes.pipes.len();
 
                     if scored {
                         // Apply score multiplier (pipe already gave 1 point, add bonus)
@@ -228,40 +262,12 @@ async fn main() {
                         particles.add_sparkle(bird.x + BIRD_WIDTH + 10.0, bird.y);
                         score_flash_white = 0.15;
 
-                        // Check milestones
-                        if let Some(msg) = check_milestone(score) {
-                            score_flash.trigger(msg);
-                        }
-
-                        // Check achievements on score
-                        if score >= 1 { achievements.try_unlock(Achievement::FirstFlight); }
-                        if score >= 25 { achievements.try_unlock(Achievement::Survivor); }
-                        if score >= 100 { achievements.try_unlock(Achievement::Centurion); }
-                        if score >= 50 && difficulty == Difficulty::Hard {
-                            achievements.try_unlock(Achievement::SpeedDemon);
-                        }
-                        if combo >= 20 {
-                            achievements.try_unlock(Achievement::Perfectionist);
-                        }
-                        if score >= 30 && weather.current != WeatherType::Clear {
-                            achievements.try_unlock(Achievement::WeatherWarrior);
-                        }
-
-                        // Automatic subtle weather transition at score milestones
-                        if score == 20 && weather.current == WeatherType::Clear {
-                            weather.set_weather(WeatherType::Rain);
-                        } else if score == 40 && weather.current == WeatherType::Rain {
-                            weather.set_weather(WeatherType::Snow);
-                        } else if score == 60 && weather.current == WeatherType::Snow {
-                            weather.set_weather(WeatherType::Sakura);
-                        } else if score == 80 && weather.current == WeatherType::Sakura {
-                            weather.set_weather(WeatherType::Firefly);
-                        }
+                        check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
                     }
 
-                    // Update powerups
+                    // Update powerups (effective_dt for movement, raw_dt for ability timers)
                     let pipe_speed = pipes.get_speed(score) * slowmo_factor;
-                    if let Some(pup) = powerups.update(raw_dt, pipe_speed, bird.x, bird.y) {
+                    if let Some(pup) = powerups.update(effective_dt, raw_dt, pipe_speed, bird.x, bird.y) {
                         audio.play_powerup();
                         particles.add_powerup_burst(
                             bird.x + BIRD_WIDTH / 2.0,
@@ -290,6 +296,14 @@ async fn main() {
                         if coins_this_game >= 10 {
                             achievements.try_unlock(Achievement::Collector);
                         }
+
+                        check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
+                    }
+
+                    // Live best score update
+                    if score > best_score {
+                        best_score = score;
+                        save_high_score(best_score);
                     }
 
                     ground.update(effective_dt, pipe_speed);
@@ -306,7 +320,7 @@ async fn main() {
                     if !powerups.is_invulnerable() && check_collision(&bird, &pipes) {
                         // Check if shield can absorb collision
                         if powerups.pop_shield() {
-                            shields_used_this_game += 1;
+                            achievements.record_shield_used();
                             audio.play_shield_break();
                             particles.add_powerup_burst(
                                 bird.x + BIRD_WIDTH / 2.0,
@@ -315,11 +329,6 @@ async fn main() {
                             );
                             screen_shake = 7.0;
                             score_flash.trigger("SHIELD BROKEN!");
-
-                            // Shield master achievement
-                            if shields_used_this_game >= 3 {
-                                achievements.try_unlock(Achievement::ShieldMaster);
-                            }
                         } else {
                             // Fatal hit
                             state = GameState::Dying;
@@ -373,13 +382,16 @@ async fn main() {
                     score = 0;
                     combo = 0;
                     coins_this_game = 0;
-                    shields_used_this_game = 0;
                     bird = Bird::new_with_skin(skin);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
+                    let initial_gaps = pipes.reset();
                     coin_mgr.reset();
                     powerups.reset();
                     achievements.reset_per_game();
-                    last_pipe_count = pipes.pipes.len();
+                    for gap in initial_gaps.iter().skip(1) {
+                        coin_mgr.spawn_for_pipe(gap.0, gap.1, gap.2);
+                        powerups.spawn_for_pipe(gap.0, gap.1, gap.2);
+                    }
                     bird.flap();
                     audio.play_flap();
                 }

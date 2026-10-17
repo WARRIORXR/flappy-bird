@@ -116,9 +116,10 @@ impl ParticleSystem {
     }
 
     pub fn update(&mut self, dt: f32) {
+        let step = (dt * 60.0).clamp(0.2, 3.0);
         for p in &mut self.particles {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * step;
+            p.y += p.vy * step;
             p.life -= dt;
         }
         self.particles.retain(|p| p.life > 0.0);
