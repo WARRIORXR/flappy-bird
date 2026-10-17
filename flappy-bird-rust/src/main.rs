@@ -26,8 +26,8 @@ use powerups::PowerUpManager;
 use weather::{WeatherSystem, WeatherType};
 use achievements::{AchievementManager, Achievement};
 use ui::{
-    Difficulty, ScoreFlash, PopupManager, GameStats, draw_start_screen, draw_game_over,
-    draw_hud, draw_speed_lines, draw_slowmo_vignette,
+    Difficulty, ScoreFlash, PopupManager, GameStats, ScreenFit, WindowScale,
+    draw_start_screen, draw_game_over, draw_hud, draw_speed_lines, draw_slowmo_vignette,
 };
 
 // ─── Game States ────────────────────────────────────────────────────────────
@@ -42,9 +42,10 @@ enum GameState {
 fn window_conf() -> Conf {
     Conf {
         window_title: "Flappy Bird - Rust Edition".to_string(),
-        window_width: 400,
-        window_height: 700,
+        window_width: 480,
+        window_height: 840,
         window_resizable: true,
+        high_dpi: true,
         ..Default::default()
     }
 }
@@ -163,6 +164,10 @@ async fn main() {
     let mut score_flash_white = 0.0f32; // brief white flash on score
     let mut game_time = 0.0f32;
 
+    let mut screen_fit = ScreenFit::Fill;
+    let mut window_scale = WindowScale::Medium;
+    let mut is_fullscreen = false;
+
     loop {
         let raw_dt = get_frame_time();
         let dt = (raw_dt / 0.01667).min(3.0);
@@ -186,6 +191,46 @@ async fn main() {
             if state == GameState::Playing {
                 popups.add(format!("Sky: {}", mode.name()), GAME_WIDTH / 2.0, 100.0, Color::from_rgba(255, 230, 130, 255), 16.0);
             }
+        }
+
+        // Fullscreen toggle: F11 or Alt+Enter
+        let alt_enter = (is_key_down(KeyCode::LeftAlt) || is_key_down(KeyCode::RightAlt))
+            && (is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::KpEnter));
+        if is_key_pressed(KeyCode::F11) || alt_enter {
+            is_fullscreen = !is_fullscreen;
+            macroquad::window::set_fullscreen(is_fullscreen);
+            let msg = if is_fullscreen { "FULLSCREEN: ON" } else { "FULLSCREEN: OFF" };
+            popups.add(msg, GAME_WIDTH / 2.0, 110.0, Color::from_rgba(100, 220, 255, 255), 18.0);
+        }
+
+        // Screen Fit toggle (X) - switches between Full Window and Fit (4:7)
+        if is_key_pressed(KeyCode::X) {
+            screen_fit = screen_fit.toggle();
+            popups.add(
+                format!("Display: {}", screen_fit.name()),
+                GAME_WIDTH / 2.0,
+                110.0,
+                Color::from_rgba(100, 255, 218, 255),
+                18.0,
+            );
+        }
+
+        // Window size cycle (Z or F10) - cycles window scale presets
+        if is_key_pressed(KeyCode::Z) || is_key_pressed(KeyCode::F10) {
+            if is_fullscreen {
+                is_fullscreen = false;
+                macroquad::window::set_fullscreen(false);
+            }
+            window_scale = window_scale.next();
+            let (w, h) = window_scale.size();
+            macroquad::window::request_new_screen_size(w, h);
+            popups.add(
+                format!("Window Size: {}", window_scale.name()),
+                GAME_WIDTH / 2.0,
+                110.0,
+                Color::from_rgba(255, 220, 120, 255),
+                18.0,
+            );
         }
 
         if is_key_pressed(KeyCode::P) && state == GameState::Playing {
@@ -472,14 +517,21 @@ async fn main() {
             ::macroquad::rand::gen_range(-screen_shake, screen_shake)
         } else { 0.0 };
 
-        // ── Camera setup (letterboxed virtual resolution) ───────────────
+        // ── Camera setup (full window or letterboxed) ───────────────
         let sw = screen_width();
         let sh = screen_height();
-        let scale = (sw / GAME_WIDTH).min(sh / GAME_HEIGHT);
-        let vp_w = (GAME_WIDTH * scale) as i32;
-        let vp_h = (GAME_HEIGHT * scale) as i32;
-        let vp_x = ((sw - vp_w as f32) / 2.0) as i32;
-        let vp_y = ((sh - vp_h as f32) / 2.0) as i32;
+
+        let (vp_x, vp_y, vp_w, vp_h) = match screen_fit {
+            ScreenFit::Fit => {
+                let scale = (sw / GAME_WIDTH).min(sh / GAME_HEIGHT);
+                let vp_w = (GAME_WIDTH * scale) as i32;
+                let vp_h = (GAME_HEIGHT * scale) as i32;
+                let vp_x = ((sw - vp_w as f32) / 2.0) as i32;
+                let vp_y = ((sh - vp_h as f32) / 2.0) as i32;
+                (vp_x, vp_y, vp_w, vp_h)
+            }
+            ScreenFit::Fill => (0, 0, sw as i32, sh as i32),
+        };
 
         clear_background(BLACK);
 
@@ -542,6 +594,9 @@ async fn main() {
                 skin,
                 weather.current,
                 bg.mode,
+                screen_fit,
+                window_scale,
+                is_fullscreen,
                 audio.muted,
                 &stats,
                 &achievements,

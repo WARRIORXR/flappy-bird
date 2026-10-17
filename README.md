@@ -88,8 +88,8 @@
 
 | Platform | File | Direct Download Link | Size |
 |:---|:---|:---:|:---:|
-| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download v1.1.0 .exe**](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.1.0/flappy-bird-rust.exe) | ~830 KB |
-| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~830 KB |
+| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download v1.2.0 .exe**](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.2.0/flappy-bird-rust.exe) | ~833 KB |
+| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~833 KB |
 
 *Double-click `flappy-bird-rust.exe` to play instantly!*
 
@@ -98,7 +98,7 @@
 ## 🚀 Quick Start
 
 ### Play Immediately (No Installation)
-Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.1.0/flappy-bird-rust.exe) and double-click to launch!
+Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.2.0/flappy-bird-rust.exe) and double-click to launch!
 
 ### Build from Source
 Make sure you have the Rust toolchain installed (1.70 or higher). If needed, install via [rustup.rs](https://rustup.rs):
@@ -123,6 +123,9 @@ cargo run --release
 |:---:|:---:|:---|
 | <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | In-Game | **Flap wings** (upward velocity burst) |
 | <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | Start / Game Over | **Start / Replay game** |
+| <kbd>F11</kbd> / <kbd>Alt</kbd>+<kbd>Enter</kbd> | Any screen | **Toggle Fullscreen Mode** (edge-to-edge monitor display) |
+| <kbd>X</kbd> | Any screen | **Toggle Screen Fit** (`Full Window` ➔ `Fit 4:7 Letterbox`) |
+| <kbd>Z</kbd> / <kbd>F10</kbd> | Windowed | **Cycle Window Size Presets** (`400×700` ➔ `480×840` ➔ `560×980` ➔ `640×1120`) |
 | <kbd>P</kbd> | Playing | **Pause / Unpause game** |
 | <kbd>N</kbd> | Start / Playing | **Cycle Sky / Celestial Cycle** (`Auto` ➔ `Day` ➔ `Sunset` ➔ `Night` ➔ `Dawn`) |
 | <kbd>M</kbd> | Any screen | **Toggle audio mute / unmute** |
@@ -131,6 +134,8 @@ cargo run --release
 | <kbd>W</kbd> | Start Screen | **Cycle Weather** (`Clear` ➔ `Rain` ➔ `Snow` ➔ `Sakura` ➔ `Firefly`) |
 | <kbd>F</kbd> | Any screen | **Toggle real-time FPS overlay** |
 | <kbd>R</kbd> | Game Over | **Instant quick restart** |
+
+> 💡 **Window Resize**: You can also freely drag and resize the window edges to any custom width and height!
 
 ---
 
@@ -256,6 +261,22 @@ The audio engine (`audio.rs`) synthesizes raw PCM audio into standard **44,100 H
 - **Screen Shake**: Decaying random camera jitter on impacts and shield destruction.
 - **Vignettes**: Distinct edge overlays signaling active time dilation or score doubling.
 - **Spark & Smoke Particles**: Friction sparks on near misses, golden sparkles on bonuses, and trail smoke behind the bird.
+
+---
+
+### 🖥️ Fullscreen & Custom Screen Sizing (v1.2.0)
+
+Play Flappy Bird exactly how you want with complete window and display flexibility:
+
+- 📺 **Full Window Mode (Default)**: Automatically expands and stretches the gameplay canvas to fill 100% of your window dimensions with **zero black borders**.
+- 📏 **Retro Letterbox Fit Mode (4:7)**: Press <kbd>X</kbd> anytime to lock into the classic 400×700 arcade portrait aspect ratio with clean letterboxed sidebars.
+- 🪟 **Window Scale Presets**: Press <kbd>Z</kbd> or <kbd>F10</kbd> in windowed mode to cycle between:
+  - **Compact**: $400 \times 700$
+  - **Medium**: $480 \times 840$
+  - **Large**: $560 \times 980$
+  - **Huge**: $640 \times 1120$
+- 🖥️ **True Fullscreen**: Press <kbd>F11</kbd> or <kbd>Alt</kbd>+<kbd>Enter</kbd> at any point to transition into seamless borderless fullscreen across your entire monitor.
+- ✋ **Freeform Window Resizing**: Grab and drag any window edge or corner to resize on the fly to your exact liking.
 
 ---
 

@@ -47,6 +47,65 @@ impl Difficulty {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ScreenFit {
+    Fit,   // 4:7 aspect ratio with letterboxing
+    Fill,  // Stretches to fill entire window (no black bars)
+}
+
+impl ScreenFit {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ScreenFit::Fit => "FIT (4:7)",
+            ScreenFit::Fill => "FULL WINDOW",
+        }
+    }
+
+    pub fn toggle(&self) -> Self {
+        match self {
+            ScreenFit::Fit => ScreenFit::Fill,
+            ScreenFit::Fill => ScreenFit::Fit,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum WindowScale {
+    Compact, // 400x700
+    Medium,  // 480x840
+    Large,   // 560x980
+    Huge,    // 640x1120
+}
+
+impl WindowScale {
+    pub fn size(&self) -> (f32, f32) {
+        match self {
+            WindowScale::Compact => (400.0, 700.0),
+            WindowScale::Medium => (480.0, 840.0),
+            WindowScale::Large => (560.0, 980.0),
+            WindowScale::Huge => (640.0, 1120.0),
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            WindowScale::Compact => "400x700",
+            WindowScale::Medium => "480x840",
+            WindowScale::Large => "560x980",
+            WindowScale::Huge => "640x1120",
+        }
+    }
+
+    pub fn next(&self) -> Self {
+        match self {
+            WindowScale::Compact => WindowScale::Medium,
+            WindowScale::Medium => WindowScale::Large,
+            WindowScale::Large => WindowScale::Huge,
+            WindowScale::Huge => WindowScale::Compact,
+        }
+    }
+}
+
 /// Milestone flash overlay — big text that fades out
 pub struct ScoreFlash {
     pub text: String,
@@ -197,6 +256,9 @@ pub fn draw_start_screen(
     skin: BirdSkin,
     weather: WeatherType,
     time_of_day: TimeOfDay,
+    screen_fit: ScreenFit,
+    window_scale: WindowScale,
+    is_fullscreen: bool,
     muted: bool,
     stats: &GameStats,
     achievements: &AchievementManager,
@@ -204,15 +266,15 @@ pub fn draw_start_screen(
     let title = "Flappy Bird";
     let title_size = 46.0;
     let t_dim = measure_text(title, None, title_size as u16, 1.0);
-    draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0 + 2.0, 132.0, title_size, Color::from_rgba(0, 0, 0, 70));
-    draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0, 130.0, title_size, Color::from_rgba(255, 215, 0, 255));
+    draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0 + 2.0, 126.0, title_size, Color::from_rgba(0, 0, 0, 70));
+    draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0, 124.0, title_size, Color::from_rgba(255, 215, 0, 255));
 
     let sub = "— Rust Edition —";
     let sub_dim = measure_text(sub, None, 16, 1.0);
-    draw_text(sub, (GAME_WIDTH - sub_dim.width) / 2.0, 155.0, 16.0, Color::from_rgba(200, 200, 200, 180));
+    draw_text(sub, (GAME_WIDTH - sub_dim.width) / 2.0, 148.0, 16.0, Color::from_rgba(200, 200, 200, 180));
 
     // Animated bird preview with selected skin
-    let preview_y = 260.0 + (time * 3.0).sin() * 15.0;
+    let preview_y = 235.0 + (time * 3.0).sin() * 12.0;
     let center_x = GAME_WIDTH / 2.0;
     let (body, belly, _wing, outline) = skin.colors();
     draw_poly(center_x, preview_y, 24, 20.0, 0.0, body);
@@ -231,35 +293,35 @@ pub fn draw_start_screen(
     let alpha = 0.5 + (time * 4.0).sin() * 0.45;
     let msg = "Tap / Space to Fly";
     let m_dim = measure_text(msg, None, 22, 1.0);
-    draw_text(msg, (GAME_WIDTH - m_dim.width) / 2.0, 360.0, 22.0, Color::new(1.0, 1.0, 1.0, alpha));
+    draw_text(msg, (GAME_WIDTH - m_dim.width) / 2.0, 320.0, 22.0, Color::new(1.0, 1.0, 1.0, alpha));
 
     // Options Panel
-    let opt_y = 398.0;
+    let opt_y = 356.0;
 
     // Difficulty Selector
     let diff_text = format!("Difficulty: [{}]  (D)", difficulty.name());
-    let d_dim = measure_text(&diff_text, None, 15, 1.0);
+    let d_dim = measure_text(&diff_text, None, 14, 1.0);
     let diff_color = match difficulty {
         Difficulty::Easy => Color::from_rgba(100, 220, 100, 255),
         Difficulty::Normal => Color::from_rgba(255, 215, 0, 255),
         Difficulty::Hard => Color::from_rgba(255, 80, 80, 255),
     };
-    draw_text(&diff_text, (GAME_WIDTH - d_dim.width) / 2.0, opt_y, 15.0, diff_color);
+    draw_text(&diff_text, (GAME_WIDTH - d_dim.width) / 2.0, opt_y, 14.0, diff_color);
 
     // Bird Skin selector
     let skin_text = format!("Bird: [{}]  (C)", skin.name());
-    let sk_dim = measure_text(&skin_text, None, 15, 1.0);
+    let sk_dim = measure_text(&skin_text, None, 14, 1.0);
     let (sk_col, _, _, _) = skin.colors();
-    draw_text(&skin_text, (GAME_WIDTH - sk_dim.width) / 2.0, opt_y + 22.0, 15.0, sk_col);
+    draw_text(&skin_text, (GAME_WIDTH - sk_dim.width) / 2.0, opt_y + 20.0, 14.0, sk_col);
 
     // Weather selector
     let w_text = format!("Weather: [{}]  (W)", weather.name());
-    let w_dim = measure_text(&w_text, None, 15, 1.0);
-    draw_text(&w_text, (GAME_WIDTH - w_dim.width) / 2.0, opt_y + 44.0, 15.0, Color::from_rgba(160, 220, 255, 255));
+    let w_dim = measure_text(&w_text, None, 14, 1.0);
+    draw_text(&w_text, (GAME_WIDTH - w_dim.width) / 2.0, opt_y + 40.0, 14.0, Color::from_rgba(160, 220, 255, 255));
 
     // Time of Day selector
     let tod_text = format!("Sky: [{}]  (N)", time_of_day.name());
-    let tod_dim = measure_text(&tod_text, None, 15, 1.0);
+    let tod_dim = measure_text(&tod_text, None, 14, 1.0);
     let tod_col = match time_of_day {
         TimeOfDay::Auto => Color::from_rgba(180, 220, 255, 255),
         TimeOfDay::Day => Color::from_rgba(255, 230, 130, 255),
@@ -267,18 +329,36 @@ pub fn draw_start_screen(
         TimeOfDay::Night => Color::from_rgba(160, 170, 255, 255),
         TimeOfDay::Dawn => Color::from_rgba(255, 180, 200, 255),
     };
-    draw_text(&tod_text, (GAME_WIDTH - tod_dim.width) / 2.0, opt_y + 66.0, 15.0, tod_col);
+    draw_text(&tod_text, (GAME_WIDTH - tod_dim.width) / 2.0, opt_y + 60.0, 14.0, tod_col);
+
+    // Screen Fit selector
+    let fit_text = format!("Display: [{}]  (X)", screen_fit.name());
+    let fit_dim = measure_text(&fit_text, None, 14, 1.0);
+    let fit_col = match screen_fit {
+        ScreenFit::Fill => Color::from_rgba(100, 255, 218, 255),
+        ScreenFit::Fit => Color::from_rgba(220, 220, 120, 255),
+    };
+    draw_text(&fit_text, (GAME_WIDTH - fit_dim.width) / 2.0, opt_y + 80.0, 14.0, fit_col);
+
+    // Window Size & Fullscreen selector
+    let win_text = if is_fullscreen {
+        "Screen: [FULLSCREEN]  (F11/Alt+Enter)".to_string()
+    } else {
+        format!("Window Size: [{}]  (Z) | F11", window_scale.name())
+    };
+    let win_dim = measure_text(&win_text, None, 14, 1.0);
+    draw_text(&win_text, (GAME_WIDTH - win_dim.width) / 2.0, opt_y + 100.0, 14.0, Color::from_rgba(200, 240, 255, 255));
 
     // Audio status
     let audio_label = if muted { "Audio: [MUTED]  (M)" } else { "Audio: [ON]  (M)" };
-    let a_dim = measure_text(audio_label, None, 15, 1.0);
+    let a_dim = measure_text(audio_label, None, 14, 1.0);
     let audio_color = if muted { Color::from_rgba(255, 120, 120, 255) } else { Color::from_rgba(180, 255, 180, 255) };
-    draw_text(audio_label, (GAME_WIDTH - a_dim.width) / 2.0, opt_y + 88.0, 15.0, audio_color);
+    draw_text(audio_label, (GAME_WIDTH - a_dim.width) / 2.0, opt_y + 120.0, 14.0, audio_color);
 
     // Controls hint
-    let hint = "P: Pause | F: FPS | R: Restart";
-    let h_dim = measure_text(hint, None, 13, 1.0);
-    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, opt_y + 112.0, 13.0, Color::from_rgba(180, 180, 180, 190));
+    let hint = "P: Pause | F: FPS | R: Restart | F11: Fullscreen";
+    let h_dim = measure_text(hint, None, 12, 1.0);
+    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, opt_y + 144.0, 12.0, Color::from_rgba(180, 180, 180, 190));
 
     // Stats box at bottom
     if stats.games_played > 0 {
