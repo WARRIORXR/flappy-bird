@@ -3,9 +3,10 @@ use crate::constants::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PowerUpType {
-    Shield, // Absorbs one collision
-    Magnet, // Pulls coins towards the bird for a duration
-    SlowMo, // Slows down pipe & obstacle speed for a duration
+    Shield,      // Absorbs one collision
+    Magnet,      // Pulls coins towards the bird for a duration
+    SlowMo,      // Slows down pipe & obstacle speed for a duration
+    DoubleScore, // Doubles points earned for a duration
 }
 
 impl PowerUpType {
@@ -14,14 +15,16 @@ impl PowerUpType {
             PowerUpType::Shield => "SHIELD",
             PowerUpType::Magnet => "MAGNET",
             PowerUpType::SlowMo => "SLOW-MO",
+            PowerUpType::DoubleScore => "2X SCORE",
         }
     }
 
     pub fn color(&self) -> Color {
         match self {
-            PowerUpType::Shield => Color::from_rgba(64, 224, 255, 255), // Cyan
-            PowerUpType::Magnet => Color::from_rgba(218, 112, 214, 255), // Orchid/Purple
-            PowerUpType::SlowMo => Color::from_rgba(255, 215, 0, 255),  // Gold
+            PowerUpType::Shield => Color::from_rgba(64, 224, 255, 255),      // Cyan
+            PowerUpType::Magnet => Color::from_rgba(218, 112, 214, 255),     // Orchid/Purple
+            PowerUpType::SlowMo => Color::from_rgba(255, 215, 0, 255),      // Gold
+            PowerUpType::DoubleScore => Color::from_rgba(255, 69, 0, 255),  // OrangeRed
         }
     }
 
@@ -30,6 +33,7 @@ impl PowerUpType {
             PowerUpType::Shield => "S",
             PowerUpType::Magnet => "M",
             PowerUpType::SlowMo => "T",
+            PowerUpType::DoubleScore => "2",
         }
     }
 }
@@ -48,7 +52,8 @@ pub struct PowerUpManager {
     pub has_shield: bool,
     pub magnet_timer: f32,
     pub slowmo_timer: f32,
-    pub invuln_timer: f32, // Brief invulnerability after shield breaks
+    pub invuln_timer: f32,        // Brief invulnerability after shield breaks
+    pub double_score_timer: f32,  // Duration of 2x score multiplier
 }
 
 impl PowerUpManager {
@@ -59,6 +64,7 @@ impl PowerUpManager {
             magnet_timer: 0.0,
             slowmo_timer: 0.0,
             invuln_timer: 0.0,
+            double_score_timer: 0.0,
         }
     }
 
@@ -68,6 +74,7 @@ impl PowerUpManager {
         self.magnet_timer = 0.0;
         self.slowmo_timer = 0.0;
         self.invuln_timer = 0.0;
+        self.double_score_timer = 0.0;
     }
 
     pub fn spawn_for_pipe(&mut self, pipe_x: f32, gap_top: f32, gap_bottom: f32) {
@@ -76,7 +83,7 @@ impl PowerUpManager {
             return;
         }
 
-        let types = [PowerUpType::Shield, PowerUpType::Magnet, PowerUpType::SlowMo];
+        let types = [PowerUpType::Shield, PowerUpType::Magnet, PowerUpType::SlowMo, PowerUpType::DoubleScore];
         let chosen_type = types[::macroquad::rand::gen_range(0, types.len())];
 
         let center_y = (gap_top + gap_bottom) / 2.0;
@@ -101,6 +108,9 @@ impl PowerUpManager {
         }
         if self.invuln_timer > 0.0 {
             self.invuln_timer = (self.invuln_timer - dt).max(0.0);
+        }
+        if self.double_score_timer > 0.0 {
+            self.double_score_timer = (self.double_score_timer - dt).max(0.0);
         }
 
         let mut collected_type = None;
@@ -133,6 +143,9 @@ impl PowerUpManager {
                     PowerUpType::SlowMo => {
                         self.slowmo_timer = 6.0;
                     }
+                    PowerUpType::DoubleScore => {
+                        self.double_score_timer = 10.0;
+                    }
                 }
             }
         }
@@ -151,6 +164,10 @@ impl PowerUpManager {
 
     pub fn is_invulnerable(&self) -> bool {
         self.invuln_timer > 0.0
+    }
+
+    pub fn is_double_score_active(&self) -> bool {
+        self.double_score_timer > 0.0
     }
 
     pub fn pop_shield(&mut self) -> bool {
@@ -207,6 +224,13 @@ impl PowerUpManager {
             draw_poly_lines(cx, cy, 24, 24.0 * pulse, time * 60.0, 2.5, shield_col);
             let shield_fill = Color::from_rgba(64, 224, 255, 50);
             draw_circle(cx, cy, 24.0 * pulse, shield_fill);
+        }
+
+        // Double score fire aura
+        if self.is_double_score_active() {
+            let pulse = 1.0 + (time * 6.0).sin() * 0.12;
+            let ds_col = Color::from_rgba(255, 69, 0, 140);
+            draw_poly_lines(cx, cy, 6, 28.0 * pulse, time * 90.0, 2.0, ds_col);
         }
     }
 }

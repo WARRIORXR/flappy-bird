@@ -3,6 +3,7 @@ use crate::constants::*;
 use crate::bird::BirdSkin;
 use crate::weather::WeatherType;
 use crate::powerups::PowerUpManager;
+use crate::achievements::AchievementManager;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Difficulty {
@@ -140,6 +141,7 @@ pub fn draw_start_screen(
     weather: WeatherType,
     muted: bool,
     stats: &GameStats,
+    achievements: &AchievementManager,
 ) {
     let title = "Flappy Bird";
     let title_size = 46.0;
@@ -216,6 +218,15 @@ pub fn draw_start_screen(
         );
         let st_dim = measure_text(&stats_text, None, 13, 1.0);
         draw_text(&stats_text, (GAME_WIDTH - st_dim.width) / 2.0, 545.0, 13.0, Color::from_rgba(160, 160, 160, 180));
+    }
+
+    // Achievements progress
+    let total_achievements = crate::achievements::Achievement::all().len();
+    let unlocked_count = achievements.unlocked.len();
+    if unlocked_count > 0 {
+        let ach_text = format!("Achievements: {}/{}", unlocked_count, total_achievements);
+        let ach_dim = measure_text(&ach_text, None, 13, 1.0);
+        draw_text(&ach_text, (GAME_WIDTH - ach_dim.width) / 2.0, 565.0, 13.0, Color::from_rgba(255, 215, 0, 180));
     }
 }
 
@@ -371,6 +382,15 @@ pub fn draw_hud(score: u32, coins: u32, fps: Option<i32>, combo: u32, muted: boo
         let col = Color::from_rgba(255, 215, 0, 230);
         let dim = measure_text(&text, None, 14, 1.0);
         draw_text(&text, GAME_WIDTH - dim.width - 12.0, badge_y, 14.0, col);
+        badge_y += 18.0;
+    }
+    if powerups.is_double_score_active() {
+        let text = format!("[2X SCORE {:.1}s]", powerups.double_score_timer);
+        let col = Color::from_rgba(255, 69, 0, 230);
+        let dim = measure_text(&text, None, 14, 1.0);
+        draw_text(&text, GAME_WIDTH - dim.width - 12.0, badge_y, 14.0, col);
+        #[allow(unused_assignments)]
+        { badge_y += 18.0; }
     }
 
     if let Some(fps_val) = fps {

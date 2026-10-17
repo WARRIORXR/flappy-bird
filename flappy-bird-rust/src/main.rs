@@ -10,6 +10,7 @@ mod ui;
 mod coins;
 mod powerups;
 mod weather;
+mod achievements;
 
 use macroquad::prelude::*;
 use constants::*;
@@ -23,6 +24,7 @@ use audio::AudioManager;
 use coins::CoinManager;
 use powerups::PowerUpManager;
 use weather::{WeatherSystem, WeatherType};
+use achievements::{AchievementManager, Achievement};
 use ui::{
     Difficulty, ScoreFlash, GameStats, draw_start_screen, draw_game_over,
     draw_hud, draw_speed_lines, draw_slowmo_vignette,
@@ -100,6 +102,7 @@ async fn main() {
     let mut ground = Ground::new();
     let mut particles = ParticleSystem::new();
     let mut weather = WeatherSystem::new();
+    let mut achievements = AchievementManager::new();
 
     let mut skin = BirdSkin::Classic;
     let mut bird = Bird::new_with_skin(skin);
@@ -118,6 +121,7 @@ async fn main() {
     let mut show_fps = false;
     let mut combo = 0u32;        // consecutive pipes passed
     let mut coins_this_game = 0u32;
+    let mut shields_used_this_game = 0u32;
 
     let mut screen_shake = 0.0f32;
     let mut score_flash_white = 0.0f32; // brief white flash on score
@@ -129,6 +133,7 @@ async fn main() {
         let dt = (raw_dt / 0.01667).min(3.0);
         game_time += raw_dt;
         score_flash.update(raw_dt);
+        achievements.update(raw_dt);
 
         // ── Input: toggles ──────────────────────────────────────────────
         if is_key_pressed(KeyCode::F) {
@@ -172,10 +177,12 @@ async fn main() {
                     score = 0;
                     combo = 0;
                     coins_this_game = 0;
+                    shields_used_this_game = 0;
                     bird = Bird::new_with_skin(skin);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
                     coin_mgr.reset();
                     powerups.reset();
+                    achievements.reset_per_game();
                     last_pipe_count = pipes.pipes.len();
                     bird.flap();
                     audio.play_flap();
@@ -191,6 +198,14 @@ async fn main() {
                     bird.update(dt);
                     particles.add_trail(bird.x + 5.0, bird.y + BIRD_HEIGHT / 2.0);
 
+                    // Calculate score multiplier based on active power-ups and difficulty
+                    let score_multiplier: u32 = {
+                        let mut mult = 1u32;
+                        if powerups.is_double_score_active() { mult *= 2; }
+                        if difficulty == Difficulty::Hard { mult += 1; }
+                        mult
+                    };
+
                     let scored = pipes.update(effective_dt, &mut score, bird.x, game_time);
 
                     // Spawn coins & powerups when new pipes appear
@@ -203,6 +218,11 @@ async fn main() {
                     last_pipe_count = pipes.pipes.len();
 
                     if scored {
+                        // Apply score multiplier (pipe already gave 1 point, add bonus)
+                        if score_multiplier > 1 {
+                            score += score_multiplier - 1; // already got 1 from pipe
+                        }
+
                         combo += 1;
                         audio.play_score();
                         particles.add_sparkle(bird.x + BIRD_WIDTH + 10.0, bird.y);
@@ -213,6 +233,20 @@ async fn main() {
                             score_flash.trigger(msg);
                         }
 
+                        // Check achievements on score
+                        if score >= 1 { achievements.try_unlock(Achievement::FirstFlight); }
+                        if score >= 25 { achievements.try_unlock(Achievement::Survivor); }
+                        if score >= 100 { achievements.try_unlock(Achievement::Centurion); }
+                        if score >= 50 && difficulty == Difficulty::Hard {
+                            achievements.try_unlock(Achievement::SpeedDemon);
+                        }
+                        if combo >= 20 {
+                            achievements.try_unlock(Achievement::Perfectionist);
+                        }
+                        if score >= 30 && weather.current != WeatherType::Clear {
+                            achievements.try_unlock(Achievement::WeatherWarrior);
+                        }
+
                         // Automatic subtle weather transition at score milestones
                         if score == 20 && weather.current == WeatherType::Clear {
                             weather.set_weather(WeatherType::Rain);
@@ -220,6 +254,8 @@ async fn main() {
                             weather.set_weather(WeatherType::Snow);
                         } else if score == 60 && weather.current == WeatherType::Snow {
                             weather.set_weather(WeatherType::Sakura);
+                        } else if score == 80 && weather.current == WeatherType::Sakura {
+                            weather.set_weather(WeatherType::Firefly);
                         }
                     }
 
@@ -245,9 +281,15 @@ async fn main() {
                     );
                     if coins_got > 0 {
                         coins_this_game += coins_got;
-                        score += coins_got * 2; // coins are worth 2 bonus points
+                        let coin_bonus = coins_got * 2 * score_multiplier;
+                        score += coin_bonus;
                         audio.play_score();
                         particles.add_sparkle(bird.x + BIRD_WIDTH / 2.0, bird.y - 10.0);
+
+                        // Check coin achievements
+                        if coins_this_game >= 10 {
+                            achievements.try_unlock(Achievement::Collector);
+                        }
                     }
 
                     ground.update(effective_dt, pipe_speed);
@@ -264,6 +306,7 @@ async fn main() {
                     if !powerups.is_invulnerable() && check_collision(&bird, &pipes) {
                         // Check if shield can absorb collision
                         if powerups.pop_shield() {
+                            shields_used_this_game += 1;
                             audio.play_shield_break();
                             particles.add_powerup_burst(
                                 bird.x + BIRD_WIDTH / 2.0,
@@ -272,6 +315,11 @@ async fn main() {
                             );
                             screen_shake = 7.0;
                             score_flash.trigger("SHIELD BROKEN!");
+
+                            // Shield master achievement
+                            if shields_used_this_game >= 3 {
+                                achievements.try_unlock(Achievement::ShieldMaster);
+                            }
                         } else {
                             // Fatal hit
                             state = GameState::Dying;
@@ -289,6 +337,14 @@ async fn main() {
                                 save_high_score(best_score);
                             }
                             stats.record_game(score, coins_this_game);
+
+                            // Lifetime achievements
+                            if stats.total_coins >= 50 {
+                                achievements.try_unlock(Achievement::CoinKing);
+                            }
+                            if stats.games_played >= 50 {
+                                achievements.try_unlock(Achievement::Veteran);
+                            }
                         }
                     }
                 }
@@ -308,6 +364,7 @@ async fn main() {
             GameState::GameOver => {
                 weather.update(dt);
                 particles.update(raw_dt);
+                achievements.update(raw_dt);
                 if is_key_pressed(KeyCode::Space)
                     || is_key_pressed(KeyCode::R)
                     || is_mouse_button_pressed(MouseButton::Left)
@@ -316,10 +373,12 @@ async fn main() {
                     score = 0;
                     combo = 0;
                     coins_this_game = 0;
+                    shields_used_this_game = 0;
                     bird = Bird::new_with_skin(skin);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
                     coin_mgr.reset();
                     powerups.reset();
+                    achievements.reset_per_game();
                     last_pipe_count = pipes.pipes.len();
                     bird.flap();
                     audio.play_flap();
@@ -378,7 +437,7 @@ async fn main() {
         coin_mgr.draw(game_time);
         powerups.draw_items(game_time);
         ground.draw();
-        weather.draw();
+        weather.draw(game_time);
         particles.draw();
 
         // Draw bird in all states except pure GameOver
@@ -394,6 +453,15 @@ async fn main() {
             draw_slowmo_vignette();
         }
 
+        // Double score border vignette (orange tint)
+        if powerups.is_double_score_active() {
+            let edge_col = Color::from_rgba(255, 69, 0, 40);
+            draw_rectangle(0.0, 0.0, GAME_WIDTH, 6.0, edge_col);
+            draw_rectangle(0.0, GAME_HEIGHT - 6.0, GAME_WIDTH, 6.0, edge_col);
+            draw_rectangle(0.0, 0.0, 6.0, GAME_HEIGHT, edge_col);
+            draw_rectangle(GAME_WIDTH - 6.0, 0.0, 6.0, GAME_HEIGHT, edge_col);
+        }
+
         // ── HUD / Overlays ──────────────────────────────────────────────
         match state {
             GameState::Start => draw_start_screen(
@@ -403,11 +471,13 @@ async fn main() {
                 weather.current,
                 audio.muted,
                 &stats,
+                &achievements,
             ),
             GameState::Playing => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
                 draw_hud(score, coins_this_game, fps, combo, audio.muted, &powerups);
                 score_flash.draw();
+                achievements.draw_notification();
 
                 // White flash on score
                 if score_flash_white > 0.0 {
@@ -429,9 +499,12 @@ async fn main() {
             GameState::Dying => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
                 draw_hud(score, coins_this_game, fps, 0, audio.muted, &powerups);
+                achievements.draw_notification();
             }
             GameState::GameOver => {
                 draw_game_over(score, best_score, coins_this_game);
+                achievements.draw_summary();
+                achievements.draw_notification();
             }
         }
 
