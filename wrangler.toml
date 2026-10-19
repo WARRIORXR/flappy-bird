@@ -1,0 +1,10 @@
+name = "flappy-bird-pro"
+main = "worker/index.js"
+compatibility_date = "2024-09-23"
+
+# Cloudflare Static Assets (serves web canvas, audio, WASM, and PWA)
+[assets]
+directory = "./web"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "single-page-application"

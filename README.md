@@ -10,6 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Web%20%7C%20Android%20%7C%20macOS%20%7C%20Linux-34a853.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
 [![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20IndexedDB-003B57.svg?style=for-the-badge&logo=sqlite)](https://github.com/WARRIORXR/flappy-bird)
+[![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare-f38020.svg?style=for-the-badge&logo=cloudflare)](https://flappy-bird-pro.phrygian-windflower.workers.dev)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird/pulls)
 
 <p align="center">
@@ -98,7 +99,11 @@
 
 ## 🚀 Quick Start
 
-### Play Immediately (No Installation)
+### 🌐 Play Live in Browser (Cloudflare Edge Global CDN)
+> **Zero Installation Required!** Play directly on desktop or mobile:  
+> 🔗 [**https://flappy-bird-pro.phrygian-windflower.workers.dev**](https://flappy-bird-pro.phrygian-windflower.workers.dev)
+
+### 🪟 Play on Windows (Desktop Executable)
 Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.3.0/flappy-bird-rust.exe) and double-click to launch!
 
 ### Build from Source
@@ -348,11 +353,15 @@ The terminal displays your local network address (e.g. `http://192.168.x.x:3030`
 ### 📦 Native Android Studio APK Project
 A full Android Studio project is located in `android/`:
 - Open `android/` in **Android Studio**.
-- Click **Build > Build Bundle(s) / APK(s) > Build APK(s)** to generate `app-debug.apk`.
-- Or build via command line:
+### ☁️ Cloudflare Edge Deployment
+The game is configured with `wrangler.toml` and a custom Cloudflare Worker (`worker/index.js`) for edge API routing and global CDN static asset serving:
+- **Live Preview URL**: [https://flappy-bird-pro.phrygian-windflower.workers.dev](https://flappy-bird-pro.phrygian-windflower.workers.dev)
+- **Deploy to Cloudflare**:
   ```bash
-  cd android
-  ./gradlew assembleDebug
+  # Deploy to your Cloudflare account
+  npm run deploy
+  # Or test via temporary preview account
+  npm run deploy:preview
   ```
 
 ---
