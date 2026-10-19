@@ -26,7 +26,7 @@
 
 - [Overview & Philosophy](#-overview--philosophy)
 - [📸 Game Photos](#-game-photos)
-- [📦 Download Executable](#-download-executable)
+- [📦 Download Executable & Live Play](#-download-executable)
 - [Quick Start](#-quick-start)
 - [Controls](#-controls)
 - [Deep Gameplay Systems](#-deep-gameplay-systems)
@@ -39,7 +39,12 @@
   - [🔊 In-Memory Procedural Audio Synthesizer](#-in-memory-procedural-audio-synthesizer)
   - [💥 Visual FX & Screen Polish](#-visual-fx--screen-polish)
 - [Project Architecture](#-project-architecture)
-- [Save Data & Persistence](#-save-data--persistence)
+- [Save Data & Persistent SQLite Database](#-save-data--persistent-sqlite-database)
+- [🌐 Web & 📱 Android Playable Guide](#-web--android-playable-guide)
+  - [🚀 Launch Web & Database Server](#-launch-the-web--database-server)
+  - [📱 Android Play & PWA Installation](#-android-play--pwa-installation)
+  - [📦 Native Android Studio APK Project](#-native-android-studio-apk-project)
+  - [☁️ Cloudflare Edge Deployment](#️-cloudflare-edge-deployment)
 - [Cross-Platform Compilation Guide](#-cross-platform-compilation-guide)
   - [Windows](#windows)
   - [macOS](#macos)
@@ -291,23 +296,48 @@ Play Flappy Bird exactly how you want with complete window and display flexibili
 ## 📁 Project Architecture
 
 ```
-flappy-bird-rust/
-├── Cargo.toml            # Project dependencies & crate metadata
-├── src/
-│   ├── main.rs           # Game loop, state machine, camera matrix, input routing
-│   ├── constants.rs      # Physics coefficients, canvas sizing, and layout limits
-│   ├── bird.rs           # Kinematics, rotation interpolation, skin palettes, death spin
-│   ├── pipes.rs          # Procedural pipe generation, vertical sine oscillation, collision
-│   ├── powerups.rs       # Shield, Magnet, SlowMo, DoubleScore mechanics, timers, auras
-│   ├── weather.rs        # Rain, Snow, Sakura, Firefly multi-particle atmospheric simulator
-│   ├── coins.rs          # Gap coin spawning, bobbing kinematics, inverse-distance magnet
-│   ├── achievements.rs   # 10 persistent achievements, disk I/O, animated notification banner
-│   ├── ground.rs         # Scrolling parallax ground with procedural grass, chevrons & pebbles
-│   ├── clouds.rs         # Multi-layered parallax cloud system with dynamic alpha
-│   ├── particles.rs      # Flight trails, explosion bursts, sparkles, shockwave expansion
-│   ├── background.rs     # 14-band gradient interpolation & twinkle starfield
-│   ├── audio.rs          # Pure mathematical procedural sound synthesizer (WAV header + PCM)
-│   └── ui.rs             # Start screen, Game Over scoreboard, medals, HUD badges, vignettes
+flappy-bird/
+├── flappy-bird-rust/         # Rust & Macroquad Native Desktop Engine
+│   ├── Cargo.toml            # Project dependencies & wasm target config
+│   └── src/
+│       ├── main.rs           # Game loop, state machine, camera matrix, touch input
+│       ├── constants.rs      # Physics coefficients, canvas sizing, layout limits
+│       ├── bird.rs           # Kinematics, rotation interpolation, skin palettes
+│       ├── pipes.rs          # Procedural pipes, vertical sine oscillation, collision
+│       ├── powerups.rs       # Shield, Magnet, SlowMo, DoubleScore mechanics & timers
+│       ├── weather.rs        # Rain, Snow, Sakura, Firefly multi-particle atmospheric simulator
+│       ├── coins.rs          # Gap coin spawning, bobbing kinematics, magnet attraction
+│       ├── achievements.rs   # 10 persistent achievements, disk I/O, animated notifications
+│       ├── ground.rs         # Scrolling parallax ground with procedural grass & chevrons
+│       ├── clouds.rs         # Multi-layered parallax cloud system with dynamic alpha
+│       ├── particles.rs      # Flight trails, explosion bursts, sparkles, shockwaves
+│       ├── background.rs     # 14-band gradient interpolation & twinkle starfield
+│       ├── audio.rs          # Pure mathematical procedural sound synthesizer (WAV PCM)
+│       └── ui.rs             # Start screen, Game Over scoreboard, medals, HUD badges
+├── web/                      # HTML5 Canvas, Web Audio API & PWA Client
+│   ├── index.html            # Responsive arcade interface with in-game leaderboard modal
+│   ├── manifest.json         # Android PWA install configuration (standalone, portrait)
+│   ├── sw.js                 # Service worker for 100% offline gameplay caching
+│   ├── css/style.css         # Retro arcade cabinet layout & responsive mobile styling
+│   ├── js/
+│   │   ├── game.js           # 60 FPS HTML5 Canvas Flappy Bird engine
+│   │   ├── audio.js          # Procedural Web Audio API sound synthesizer
+│   │   └── database.js       # Client hybrid database (SQLite REST API + IndexedDB sync)
+│   ├── icons/                # High-DPI app launcher icons (SVG, 192px, 512px)
+│   └── wasm/                 # Compiled Rust WebAssembly runner & miniquad JS glue
+├── server/                   # Node.js Server & Persistent SQLite Database
+│   ├── server.js             # HTTP REST API server & static asset host with CORS
+│   └── db.js                 # SQLite database manager powered by node:sqlite
+├── worker/                   # Cloudflare Worker Edge Backend
+│   └── index.js              # Edge API router and global CDN asset serving
+├── android/                  # Native Android Studio APK Project
+│   ├── app/src/main/         # AndroidManifest.xml, MainActivity.java & bundled assets
+│   ├── build.gradle          # Android Gradle build configuration
+│   └── README.md             # Android build & APK installation guide
+├── data/
+│   └── flappy_scores.db      # Production SQLite database file
+├── wrangler.toml             # Cloudflare Workers configuration
+└── package.json              # Project scripts (start, deploy, build:wasm)
 ```
 
 ---
@@ -353,12 +383,20 @@ The terminal displays your local network address (e.g. `http://192.168.x.x:3030`
 ### 📦 Native Android Studio APK Project
 A full Android Studio project is located in `android/`:
 - Open `android/` in **Android Studio**.
+- Click **Build > Build Bundle(s) / APK(s) > Build APK(s)** to generate `app-debug.apk`.
+- Or build via command line:
+  ```bash
+  cd android
+  ./gradlew assembleDebug
+  # Generated APK located at: app/build/outputs/apk/debug/app-debug.apk
+  ```
+
 ### ☁️ Cloudflare Edge Deployment
 The game is configured with `wrangler.toml` and a custom Cloudflare Worker (`worker/index.js`) for edge API routing and global CDN static asset serving:
-- **Live Preview URL**: [https://flappy-bird-pro.phrygian-windflower.workers.dev](https://flappy-bird-pro.phrygian-windflower.workers.dev)
+- **Live URL**: [https://flappy-bird-pro.phrygian-windflower.workers.dev](https://flappy-bird-pro.phrygian-windflower.workers.dev)
 - **Deploy to Cloudflare**:
   ```bash
-  # Deploy to your Cloudflare account
+  # Deploy directly to your Cloudflare account
   npm run deploy
   # Or test via temporary preview account
   npm run deploy:preview
