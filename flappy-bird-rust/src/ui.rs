@@ -6,6 +6,28 @@ use crate::powerups::PowerUpManager;
 use crate::achievements::AchievementManager;
 use crate::background::TimeOfDay;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GameMode {
+    Solo,
+    TwoPlayer,
+}
+
+impl GameMode {
+    pub fn name(&self) -> &'static str {
+        match self {
+            GameMode::Solo => "SOLO",
+            GameMode::TwoPlayer => "2 PLAYERS (DUEL)",
+        }
+    }
+
+    pub fn next(&self) -> Self {
+        match self {
+            GameMode::Solo => GameMode::TwoPlayer,
+            GameMode::TwoPlayer => GameMode::Solo,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Difficulty {
     Easy,
@@ -252,6 +274,7 @@ impl GameStats {
 #[allow(clippy::too_many_arguments)]
 pub fn draw_start_screen(
     time: f32,
+    game_mode: GameMode,
     difficulty: Difficulty,
     skin: BirdSkin,
     weather: WeatherType,
@@ -269,34 +292,102 @@ pub fn draw_start_screen(
     draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0 + 2.0, 126.0, title_size, Color::from_rgba(0, 0, 0, 70));
     draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0, 124.0, title_size, Color::from_rgba(255, 215, 0, 255));
 
-    let sub = "— Rust Edition —";
+    let sub = if game_mode == GameMode::TwoPlayer {
+        "— 2 Players Duel Mode —"
+    } else {
+        "— Rust Edition —"
+    };
     let sub_dim = measure_text(sub, None, 16, 1.0);
-    draw_text(sub, (GAME_WIDTH - sub_dim.width) / 2.0, 148.0, 16.0, Color::from_rgba(200, 200, 200, 180));
+    let sub_color = if game_mode == GameMode::TwoPlayer {
+        Color::from_rgba(100, 220, 255, 230)
+    } else {
+        Color::from_rgba(200, 200, 200, 180)
+    };
+    draw_text(sub, (GAME_WIDTH - sub_dim.width) / 2.0, 148.0, 16.0, sub_color);
 
-    // Animated bird preview with selected skin
-    let preview_y = 235.0 + (time * 3.0).sin() * 12.0;
+    // Animated bird preview
+    let preview_y = 230.0 + (time * 3.0).sin() * 10.0;
     let center_x = GAME_WIDTH / 2.0;
-    let (body, belly, _wing, outline) = skin.colors();
-    draw_poly(center_x, preview_y, 24, 20.0, 0.0, body);
-    draw_poly_lines(center_x, preview_y, 24, 20.0, 0.0, 1.5, outline);
-    draw_poly(center_x + 3.0, preview_y + 4.0, 16, 10.0, 0.0, belly);
-    draw_circle(center_x + 12.0, preview_y - 6.0, 6.0, WHITE);
-    draw_circle(center_x + 14.0, preview_y - 6.0, 3.0, BLACK);
-    draw_triangle(
-        vec2(center_x + 18.0, preview_y - 2.0),
-        vec2(center_x + 30.0, preview_y + 2.0),
-        vec2(center_x + 18.0, preview_y + 6.0),
-        Color::from_rgba(255, 102, 0, 255),
-    );
+
+    if game_mode == GameMode::TwoPlayer {
+        // Draw Bird 1 (P1)
+        let p1_x = center_x - 55.0;
+        let (b1, bel1, _, out1) = skin.colors();
+        draw_poly(p1_x, preview_y, 24, 18.0, 0.0, b1);
+        draw_poly_lines(p1_x, preview_y, 24, 18.0, 0.0, 1.5, out1);
+        draw_poly(p1_x + 2.0, preview_y + 3.0, 16, 8.0, 0.0, bel1);
+        draw_circle(p1_x + 10.0, preview_y - 5.0, 5.0, WHITE);
+        draw_circle(p1_x + 12.0, preview_y - 5.0, 2.5, BLACK);
+        draw_triangle(
+            vec2(p1_x + 15.0, preview_y - 2.0),
+            vec2(p1_x + 25.0, preview_y + 1.0),
+            vec2(p1_x + 15.0, preview_y + 5.0),
+            Color::from_rgba(255, 102, 0, 255),
+        );
+        let p1_label = "P1: Space/W";
+        let p1_dim = measure_text(p1_label, None, 11, 1.0);
+        draw_text(p1_label, p1_x - p1_dim.width / 2.0 + 5.0, preview_y + 30.0, 11.0, b1);
+
+        // VS in center
+        let vs = "VS";
+        let vs_dim = measure_text(vs, None, 16, 1.0);
+        draw_text(vs, center_x - vs_dim.width / 2.0, preview_y + 5.0, 16.0, Color::from_rgba(255, 215, 0, 220));
+
+        // Draw Bird 2 (P2)
+        let p2_x = center_x + 45.0;
+        let p2_skin = if skin == BirdSkin::Blue { BirdSkin::Red } else { BirdSkin::Blue };
+        let (b2, bel2, _, out2) = p2_skin.colors();
+        draw_poly(p2_x, preview_y - (time * 3.0).cos() * 6.0, 24, 18.0, 0.0, b2);
+        draw_poly_lines(p2_x, preview_y - (time * 3.0).cos() * 6.0, 24, 18.0, 0.0, 1.5, out2);
+        draw_poly(p2_x + 2.0, preview_y + 3.0 - (time * 3.0).cos() * 6.0, 16, 8.0, 0.0, bel2);
+        draw_circle(p2_x + 10.0, preview_y - 5.0 - (time * 3.0).cos() * 6.0, 5.0, WHITE);
+        draw_circle(p2_x + 12.0, preview_y - 5.0 - (time * 3.0).cos() * 6.0, 2.5, BLACK);
+        draw_triangle(
+            vec2(p2_x + 15.0, preview_y - 2.0 - (time * 3.0).cos() * 6.0),
+            vec2(p2_x + 25.0, preview_y + 1.0 - (time * 3.0).cos() * 6.0),
+            vec2(p2_x + 15.0, preview_y + 5.0 - (time * 3.0).cos() * 6.0),
+            Color::from_rgba(255, 102, 0, 255),
+        );
+        let p2_label = "P2: Up/K";
+        let p2_dim = measure_text(p2_label, None, 11, 1.0);
+        draw_text(p2_label, p2_x - p2_dim.width / 2.0 + 5.0, preview_y + 30.0, 11.0, b2);
+    } else {
+        let (body, belly, _wing, outline) = skin.colors();
+        draw_poly(center_x, preview_y, 24, 20.0, 0.0, body);
+        draw_poly_lines(center_x, preview_y, 24, 20.0, 0.0, 1.5, outline);
+        draw_poly(center_x + 3.0, preview_y + 4.0, 16, 10.0, 0.0, belly);
+        draw_circle(center_x + 12.0, preview_y - 6.0, 6.0, WHITE);
+        draw_circle(center_x + 14.0, preview_y - 6.0, 3.0, BLACK);
+        draw_triangle(
+            vec2(center_x + 18.0, preview_y - 2.0),
+            vec2(center_x + 30.0, preview_y + 2.0),
+            vec2(center_x + 18.0, preview_y + 6.0),
+            Color::from_rgba(255, 102, 0, 255),
+        );
+    }
 
     // Flashing start instruction
     let alpha = 0.5 + (time * 4.0).sin() * 0.45;
-    let msg = "Tap / Space to Fly";
+    let msg = if game_mode == GameMode::TwoPlayer {
+        "Tap / Space to Start Duel"
+    } else {
+        "Tap / Space to Fly"
+    };
     let m_dim = measure_text(msg, None, 22, 1.0);
-    draw_text(msg, (GAME_WIDTH - m_dim.width) / 2.0, 320.0, 22.0, Color::new(1.0, 1.0, 1.0, alpha));
+    draw_text(msg, (GAME_WIDTH - m_dim.width) / 2.0, 312.0, 22.0, Color::new(1.0, 1.0, 1.0, alpha));
 
     // Options Panel
-    let opt_y = 356.0;
+    let opt_y = 345.0;
+
+    // Game Mode Selector
+    let mode_text = format!("Mode: [{}]  (2 / Tab)", game_mode.name());
+    let m_dim2 = measure_text(&mode_text, None, 14, 1.0);
+    let mode_col = if game_mode == GameMode::TwoPlayer {
+        Color::from_rgba(100, 220, 255, 255)
+    } else {
+        Color::from_rgba(255, 215, 0, 255)
+    };
+    draw_text(&mode_text, (GAME_WIDTH - m_dim2.width) / 2.0, opt_y, 14.0, mode_col);
 
     // Difficulty Selector
     let diff_text = format!("Difficulty: [{}]  (D)", difficulty.name());
@@ -306,18 +397,18 @@ pub fn draw_start_screen(
         Difficulty::Normal => Color::from_rgba(255, 215, 0, 255),
         Difficulty::Hard => Color::from_rgba(255, 80, 80, 255),
     };
-    draw_text(&diff_text, (GAME_WIDTH - d_dim.width) / 2.0, opt_y, 14.0, diff_color);
+    draw_text(&diff_text, (GAME_WIDTH - d_dim.width) / 2.0, opt_y + 19.0, 14.0, diff_color);
 
     // Bird Skin selector
-    let skin_text = format!("Bird: [{}]  (C)", skin.name());
+    let skin_text = format!("Bird Skin: [{}]  (C)", skin.name());
     let sk_dim = measure_text(&skin_text, None, 14, 1.0);
     let (sk_col, _, _, _) = skin.colors();
-    draw_text(&skin_text, (GAME_WIDTH - sk_dim.width) / 2.0, opt_y + 20.0, 14.0, sk_col);
+    draw_text(&skin_text, (GAME_WIDTH - sk_dim.width) / 2.0, opt_y + 38.0, 14.0, sk_col);
 
     // Weather selector
     let w_text = format!("Weather: [{}]  (W)", weather.name());
     let w_dim = measure_text(&w_text, None, 14, 1.0);
-    draw_text(&w_text, (GAME_WIDTH - w_dim.width) / 2.0, opt_y + 40.0, 14.0, Color::from_rgba(160, 220, 255, 255));
+    draw_text(&w_text, (GAME_WIDTH - w_dim.width) / 2.0, opt_y + 57.0, 14.0, Color::from_rgba(160, 220, 255, 255));
 
     // Time of Day selector
     let tod_text = format!("Sky: [{}]  (N)", time_of_day.name());
@@ -329,7 +420,7 @@ pub fn draw_start_screen(
         TimeOfDay::Night => Color::from_rgba(160, 170, 255, 255),
         TimeOfDay::Dawn => Color::from_rgba(255, 180, 200, 255),
     };
-    draw_text(&tod_text, (GAME_WIDTH - tod_dim.width) / 2.0, opt_y + 60.0, 14.0, tod_col);
+    draw_text(&tod_text, (GAME_WIDTH - tod_dim.width) / 2.0, opt_y + 76.0, 14.0, tod_col);
 
     // Screen Fit selector
     let fit_text = format!("Display: [{}]  (X)", screen_fit.name());
@@ -338,7 +429,7 @@ pub fn draw_start_screen(
         ScreenFit::Fill => Color::from_rgba(100, 255, 218, 255),
         ScreenFit::Fit => Color::from_rgba(220, 220, 120, 255),
     };
-    draw_text(&fit_text, (GAME_WIDTH - fit_dim.width) / 2.0, opt_y + 80.0, 14.0, fit_col);
+    draw_text(&fit_text, (GAME_WIDTH - fit_dim.width) / 2.0, opt_y + 95.0, 14.0, fit_col);
 
     // Window Size & Fullscreen selector
     let win_text = if is_fullscreen {
@@ -347,18 +438,22 @@ pub fn draw_start_screen(
         format!("Window Size: [{}]  (Z) | F11", window_scale.name())
     };
     let win_dim = measure_text(&win_text, None, 14, 1.0);
-    draw_text(&win_text, (GAME_WIDTH - win_dim.width) / 2.0, opt_y + 100.0, 14.0, Color::from_rgba(200, 240, 255, 255));
+    draw_text(&win_text, (GAME_WIDTH - win_dim.width) / 2.0, opt_y + 114.0, 14.0, Color::from_rgba(200, 240, 255, 255));
 
     // Audio status
     let audio_label = if muted { "Audio: [MUTED]  (M)" } else { "Audio: [ON]  (M)" };
     let a_dim = measure_text(audio_label, None, 14, 1.0);
     let audio_color = if muted { Color::from_rgba(255, 120, 120, 255) } else { Color::from_rgba(180, 255, 180, 255) };
-    draw_text(audio_label, (GAME_WIDTH - a_dim.width) / 2.0, opt_y + 120.0, 14.0, audio_color);
+    draw_text(audio_label, (GAME_WIDTH - a_dim.width) / 2.0, opt_y + 133.0, 14.0, audio_color);
 
     // Controls hint
-    let hint = "P: Pause | F: FPS | R: Restart | F11: Fullscreen";
+    let hint = if game_mode == GameMode::TwoPlayer {
+        "P1: Space/W | P2: Up/K | P: Pause | R: Restart"
+    } else {
+        "P: Pause | F: FPS | R: Restart | F11: Fullscreen"
+    };
     let h_dim = measure_text(hint, None, 12, 1.0);
-    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, opt_y + 144.0, 12.0, Color::from_rgba(180, 180, 180, 190));
+    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, opt_y + 155.0, 12.0, Color::from_rgba(180, 180, 180, 190));
 
     // Stats box at bottom
     if stats.games_played > 0 {
@@ -367,7 +462,7 @@ pub fn draw_start_screen(
             stats.games_played, stats.total_score, stats.total_coins
         );
         let st_dim = measure_text(&stats_text, None, 13, 1.0);
-        draw_text(&stats_text, (GAME_WIDTH - st_dim.width) / 2.0, 545.0, 13.0, Color::from_rgba(160, 160, 160, 180));
+        draw_text(&stats_text, (GAME_WIDTH - st_dim.width) / 2.0, 550.0, 13.0, Color::from_rgba(160, 160, 160, 180));
     }
 
     // Achievements progress
@@ -376,7 +471,7 @@ pub fn draw_start_screen(
     if unlocked_count > 0 {
         let ach_text = format!("Achievements: {}/{}", unlocked_count, total_achievements);
         let ach_dim = measure_text(&ach_text, None, 13, 1.0);
-        draw_text(&ach_text, (GAME_WIDTH - ach_dim.width) / 2.0, 565.0, 13.0, Color::from_rgba(255, 215, 0, 180));
+        draw_text(&ach_text, (GAME_WIDTH - ach_dim.width) / 2.0, 568.0, 13.0, Color::from_rgba(255, 215, 0, 180));
     }
 }
 
@@ -547,6 +642,139 @@ pub fn draw_hud(score: u32, coins: u32, fps: Option<i32>, combo: u32, muted: boo
         let fps_str = format!("FPS: {}", fps_val);
         draw_text(&fps_str, 12.0, 24.0, 16.0, Color::from_rgba(50, 255, 50, 255));
     }
+}
+
+pub fn draw_hud_2p(
+    score1: u32,
+    score2: u32,
+    alive1: bool,
+    alive2: bool,
+    skin1: BirdSkin,
+    skin2: BirdSkin,
+    coins: u32,
+    muted: bool,
+) {
+    let (col1, _, _, _) = skin1.colors();
+    let (col2, _, _, _) = skin2.colors();
+
+    // P1 Badge (Top-Left)
+    draw_rectangle(12.0, 16.0, 115.0, 48.0, Color::from_rgba(0, 0, 0, 160));
+    draw_rectangle_lines(12.0, 16.0, 115.0, 48.0, 2.0, col1);
+    let p1_title = if alive1 { "PLAYER 1" } else { "P1 (OUT)" };
+    draw_text(p1_title, 20.0, 32.0, 13.0, if alive1 { col1 } else { Color::from_rgba(180, 180, 180, 200) });
+    let s1_str = score1.to_string();
+    draw_text(&s1_str, 20.0, 56.0, 24.0, WHITE);
+
+    // VS in center
+    let vs = "VS";
+    let vs_dim = measure_text(vs, None, 22, 1.0);
+    draw_text(vs, (GAME_WIDTH - vs_dim.width) / 2.0, 46.0, 22.0, Color::from_rgba(255, 215, 0, 230));
+
+    // P2 Badge (Top-Right)
+    let p2_w = 115.0;
+    let p2_x = GAME_WIDTH - p2_w - 12.0;
+    draw_rectangle(p2_x, 16.0, p2_w, 48.0, Color::from_rgba(0, 0, 0, 160));
+    draw_rectangle_lines(p2_x, 16.0, p2_w, 48.0, 2.0, col2);
+    let p2_title = if alive2 { "PLAYER 2" } else { "P2 (OUT)" };
+    draw_text(p2_title, p2_x + 12.0, 32.0, 13.0, if alive2 { col2 } else { Color::from_rgba(180, 180, 180, 200) });
+    let s2_str = score2.to_string();
+    let s2_dim = measure_text(&s2_str, None, 24, 1.0);
+    draw_text(&s2_str, p2_x + p2_w - s2_dim.width - 14.0, 56.0, 24.0, WHITE);
+
+    // Coin & Mute indicators
+    let coin_str = format!("$ {}", coins);
+    draw_text(&coin_str, 16.0, 80.0, 15.0, Color::from_rgba(255, 215, 0, 255));
+    if muted {
+        let m_dim = measure_text("MUTED", None, 13, 1.0);
+        draw_text("MUTED", GAME_WIDTH - m_dim.width - 16.0, 80.0, 13.0, Color::from_rgba(255, 100, 100, 220));
+    }
+}
+
+pub fn draw_game_over_2p(
+    score1: u32,
+    score2: u32,
+    skin1: BirdSkin,
+    skin2: BirdSkin,
+    coins_collected: u32,
+) {
+    // Dark veil
+    draw_rectangle(0.0, 0.0, GAME_WIDTH, GAME_HEIGHT, Color::from_rgba(0, 0, 0, 130));
+
+    let title = "DUEL FINISHED!";
+    let t_dim = measure_text(title, None, 38, 1.0);
+    draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0 + 2.0, 142.0, 38.0, Color::from_rgba(0, 0, 0, 120));
+    draw_text(title, (GAME_WIDTH - t_dim.width) / 2.0, 140.0, 38.0, Color::from_rgba(255, 215, 0, 255));
+
+    // Winner Banner
+    let (winner_text, winner_col) = if score1 > score2 {
+        ("👑 PLAYER 1 WINS! 👑", Color::from_rgba(255, 215, 0, 255))
+    } else if score2 > score1 {
+        ("👑 PLAYER 2 WINS! 👑", Color::from_rgba(70, 160, 255, 255))
+    } else {
+        ("🤝 IT'S A DRAW! 🤝", Color::from_rgba(200, 200, 200, 255))
+    };
+    let w_dim = measure_text(winner_text, None, 22, 1.0);
+    draw_text(winner_text, (GAME_WIDTH - w_dim.width) / 2.0, 178.0, 22.0, winner_col);
+
+    // Duel Scorecard
+    let px = GAME_WIDTH / 2.0 - 130.0;
+    let py = 205.0;
+    let pw = 260.0;
+    let ph = 210.0;
+
+    draw_rectangle(px + 4.0, py + 4.0, pw, ph, Color::from_rgba(0, 0, 0, 70));
+    draw_rectangle(px, py, pw, ph, Color::from_rgba(245, 222, 179, 255));
+    draw_rectangle_lines(px, py, pw, ph, 3.0, Color::from_rgba(139, 115, 85, 255));
+
+    // Player 1 Column
+    let (col1, _, _, _) = skin1.colors();
+    draw_text("PLAYER 1", px + 24.0, py + 35.0, 16.0, col1);
+    let s1_str = score1.to_string();
+    let s1_dim = measure_text(&s1_str, None, 36, 1.0);
+    draw_text(&s1_str, px + 24.0 + (65.0 - s1_dim.width) / 2.0, py + 80.0, 36.0, Color::from_rgba(30, 30, 30, 255));
+    if score1 >= score2 && score1 > 0 {
+        draw_text("★ WINNER", px + 22.0, py + 110.0, 13.0, Color::from_rgba(218, 165, 32, 255));
+    }
+
+    // Divider Line
+    draw_line(px + pw / 2.0, py + 18.0, px + pw / 2.0, py + 140.0, 2.0, Color::from_rgba(180, 150, 100, 255));
+
+    // Player 2 Column
+    let (col2, _, _, _) = skin2.colors();
+    draw_text("PLAYER 2", px + pw / 2.0 + 24.0, py + 35.0, 16.0, col2);
+    let s2_str = score2.to_string();
+    let s2_dim = measure_text(&s2_str, None, 36, 1.0);
+    draw_text(&s2_str, px + pw / 2.0 + 24.0 + (65.0 - s2_dim.width) / 2.0, py + 80.0, 36.0, Color::from_rgba(30, 30, 30, 255));
+    if score2 >= score1 && score2 > 0 {
+        draw_text("★ WINNER", px + pw / 2.0 + 22.0, py + 110.0, 13.0, Color::from_rgba(218, 165, 32, 255));
+    }
+
+    // Bottom info in card
+    draw_line(px + 15.0, py + 150.0, px + pw - 15.0, py + 150.0, 1.0, Color::from_rgba(180, 150, 100, 255));
+    let coins_str = format!("Coins Collected: {}", coins_collected);
+    let c_dim = measure_text(&coins_str, None, 14, 1.0);
+    draw_text(&coins_str, (GAME_WIDTH - c_dim.width) / 2.0, py + 175.0, 14.0, Color::from_rgba(139, 100, 30, 255));
+    let diff_info = "P1: Space/W | P2: Up/K";
+    let di_dim = measure_text(diff_info, None, 12, 1.0);
+    draw_text(diff_info, (GAME_WIDTH - di_dim.width) / 2.0, py + 195.0, 12.0, Color::from_rgba(100, 100, 100, 220));
+
+    // Restart button
+    let bx = GAME_WIDTH / 2.0 - 80.0;
+    let by = 445.0;
+    let bw = 160.0;
+    let bh = 46.0;
+
+    draw_rectangle(bx + 3.0, by + 3.0, bw, bh, Color::from_rgba(0, 0, 0, 60));
+    draw_rectangle(bx, by, bw, bh, Color::from_rgba(76, 175, 80, 255));
+    draw_rectangle_lines(bx, by, bw, bh, 2.0, Color::from_rgba(46, 125, 50, 255));
+
+    let r_text = "PLAY AGAIN";
+    let r_dim = measure_text(r_text, None, 18, 1.0);
+    draw_text(r_text, (GAME_WIDTH - r_dim.width) / 2.0, by + 28.0, 18.0, WHITE);
+
+    let hint = "Space / Tap / R";
+    let h_dim = measure_text(hint, None, 14, 1.0);
+    draw_text(hint, (GAME_WIDTH - h_dim.width) / 2.0, by + bh + 22.0, 14.0, Color::from_rgba(180, 180, 180, 200));
 }
 
 /// Draw slow motion blue vignette edge effect

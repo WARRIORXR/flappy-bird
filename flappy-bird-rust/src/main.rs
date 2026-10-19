@@ -26,8 +26,8 @@ use powerups::PowerUpManager;
 use weather::{WeatherSystem, WeatherType};
 use achievements::{AchievementManager, Achievement};
 use ui::{
-    Difficulty, ScoreFlash, PopupManager, GameStats, ScreenFit, WindowScale,
-    draw_start_screen, draw_game_over, draw_hud, draw_speed_lines, draw_slowmo_vignette,
+    Difficulty, GameMode, ScoreFlash, PopupManager, GameStats, ScreenFit, WindowScale,
+    draw_start_screen, draw_game_over, draw_game_over_2p, draw_hud, draw_hud_2p, draw_speed_lines, draw_slowmo_vignette,
 };
 
 // ─── Game States ────────────────────────────────────────────────────────────
@@ -164,8 +164,15 @@ async fn main() {
     let mut achievements = AchievementManager::new();
     let mut popups = PopupManager::new();
 
+    let mut game_mode = GameMode::Solo;
     let mut skin = BirdSkin::Classic;
+    let mut skin2 = BirdSkin::Blue;
     let mut bird = Bird::new_with_skin(skin);
+    let mut bird2 = Bird::new_with_skin_at(105.0, skin2);
+    let mut score1 = 0u32;
+    let mut score2 = 0u32;
+    let mut alive1 = true;
+    let mut alive2 = true;
 
     let mut difficulty = Difficulty::Normal;
     let mut pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
@@ -260,23 +267,45 @@ async fn main() {
 
         // Start screen options
         if state == GameState::Start {
+            if is_key_pressed(KeyCode::Key2) || is_key_pressed(KeyCode::Tab) {
+                game_mode = game_mode.next();
+            }
             if is_key_pressed(KeyCode::D) {
                 difficulty = difficulty.next();
                 pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
             }
             if is_key_pressed(KeyCode::C) {
                 skin = skin.next();
+                skin2 = if skin == BirdSkin::Blue { BirdSkin::Red } else { BirdSkin::Blue };
             }
             if is_key_pressed(KeyCode::W) {
                 weather.toggle_weather();
             }
         }
 
-        let has_touch = touches().iter().any(|t| t.phase == TouchPhase::Started);
-        let tap = is_key_pressed(KeyCode::Space)
-            || is_key_pressed(KeyCode::Up)
-            || is_mouse_button_pressed(MouseButton::Left)
-            || has_touch;
+        let (p1_flap, p2_flap) = match game_mode {
+            GameMode::Solo => {
+                let has_touch = touches().iter().any(|t| t.phase == TouchPhase::Started);
+                let flap = is_key_pressed(KeyCode::Space)
+                    || is_key_pressed(KeyCode::Up)
+                    || is_key_pressed(KeyCode::W)
+                    || is_mouse_button_pressed(MouseButton::Left)
+                    || has_touch;
+                (flap, false)
+            }
+            GameMode::TwoPlayer => {
+                let touch_left = touches().iter().any(|t| t.phase == TouchPhase::Started && t.position.x < screen_width() / 2.0);
+                let touch_right = touches().iter().any(|t| t.phase == TouchPhase::Started && t.position.x >= screen_width() / 2.0);
+                let mouse_left = is_mouse_button_pressed(MouseButton::Left) && mouse_position().0 < screen_width() / 2.0;
+                let mouse_right = (is_mouse_button_pressed(MouseButton::Left) && mouse_position().0 >= screen_width() / 2.0)
+                    || is_mouse_button_pressed(MouseButton::Right);
+
+                let p1 = is_key_pressed(KeyCode::Space) || is_key_pressed(KeyCode::W) || touch_left || mouse_left;
+                let p2 = is_key_pressed(KeyCode::Up) || is_key_pressed(KeyCode::K) || touch_right || mouse_right;
+                (p1, p2)
+            }
+        };
+        let tap = p1_flap || p2_flap;
 
         // ── State machine ───────────────────────────────────────────────
         match state {
@@ -287,9 +316,19 @@ async fn main() {
                 if tap {
                     state = GameState::Playing;
                     score = 0;
+                    score1 = 0;
+                    score2 = 0;
+                    alive1 = true;
+                    alive2 = true;
                     combo = 0;
                     coins_this_game = 0;
-                    bird = Bird::new_with_skin(skin);
+                    bird = if game_mode == GameMode::TwoPlayer {
+                        Bird::new_with_skin_at(75.0, skin)
+                    } else {
+                        Bird::new_with_skin_at(BIRD_X, skin)
+                    };
+                    skin2 = if skin == BirdSkin::Blue { BirdSkin::Red } else { BirdSkin::Blue };
+                    bird2 = Bird::new_with_skin_at(105.0, skin2);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
                     let initial_gaps = pipes.reset();
                     coin_mgr.reset();
@@ -300,6 +339,9 @@ async fn main() {
                         powerups.spawn_for_pipe(gap.0, gap.1, gap.2);
                     }
                     bird.flap();
+                    if game_mode == GameMode::TwoPlayer {
+                        bird2.flap();
+                    }
                     audio.play_flap();
                 }
             }
@@ -310,8 +352,31 @@ async fn main() {
                     let slowmo_factor = if powerups.is_slowmo_active() { 0.6 } else { 1.0 };
                     let effective_dt = dt * slowmo_factor;
 
-                    bird.update(dt);
-                    particles.add_trail(bird.x + 5.0, bird.y + BIRD_HEIGHT / 2.0);
+                    if alive1 {
+                        bird.update(dt);
+                        particles.add_trail(bird.x + 5.0, bird.y + BIRD_HEIGHT / 2.0);
+                    } else {
+                        bird.update_death(dt);
+                    }
+
+                    if game_mode == GameMode::TwoPlayer {
+                        if alive2 {
+                            bird2.update(dt);
+                            particles.add_trail(bird2.x + 5.0, bird2.y + BIRD_HEIGHT / 2.0);
+                        } else {
+                            bird2.update_death(dt);
+                        }
+                    }
+
+                    if p1_flap && alive1 {
+                        bird.flap();
+                        audio.play_flap();
+                    }
+
+                    if p2_flap && game_mode == GameMode::TwoPlayer && alive2 {
+                        bird2.flap();
+                        audio.play_flap();
+                    }
 
                     // Calculate score multiplier based on active power-ups and difficulty
                     let score_multiplier: u32 = {
@@ -321,7 +386,69 @@ async fn main() {
                         mult
                     };
 
-                    let (pipe_score_ev, spawned_gap) = pipes.update(effective_dt, &mut score, bird.x, game_time);
+                    let spawned_gap = if game_mode == GameMode::TwoPlayer {
+                        let (ev1, ev2, gap) = pipes.update_2p(
+                            effective_dt,
+                            &mut score1,
+                            &mut score2,
+                            bird.x,
+                            alive1,
+                            bird2.x,
+                            alive2,
+                            game_time,
+                        );
+                        if let Some(ev) = ev1 {
+                            audio.play_score();
+                            particles.add_sparkle(bird.x + BIRD_WIDTH + 8.0, bird.y);
+                            popups.add(format!("P1 +{}", ev.points), bird.x + 10.0, bird.y - 15.0, Color::from_rgba(255, 215, 0, 255), 14.0);
+                        }
+                        if let Some(ev) = ev2 {
+                            audio.play_score();
+                            particles.add_sparkle(bird2.x + BIRD_WIDTH + 8.0, bird2.y);
+                            popups.add(format!("P2 +{}", ev.points), bird2.x + 10.0, bird2.y - 15.0, Color::from_rgba(70, 160, 255, 255), 14.0);
+                        }
+                        score = score1.max(score2);
+                        gap
+                    } else {
+                        let (pipe_score_ev, gap) = pipes.update(effective_dt, &mut score, bird.x, game_time);
+                        if let Some(ev) = pipe_score_ev {
+                            // Apply score multiplier (ev.points is already added once by pipes.update)
+                            if score_multiplier > 1 {
+                                score += ev.points * (score_multiplier - 1);
+                            }
+
+                            let total_pts = ev.points * score_multiplier;
+                            combo += 1;
+
+                            if ev.is_golden {
+                                audio.play_golden();
+                                popups.add(
+                                    format!("+{} GOLDEN PIPE!", total_pts),
+                                    ev.x,
+                                    ev.y,
+                                    Color::from_rgba(255, 215, 0, 255),
+                                    18.0,
+                                );
+                                score_flash.trigger("GOLDEN PIPE! +5");
+                                particles.add_powerup_burst(ev.x, ev.y, Color::from_rgba(255, 215, 0, 255));
+                                score_flash_white = 0.25;
+                            } else {
+                                audio.play_score();
+                                popups.add(
+                                    format!("+{}", total_pts),
+                                    ev.x,
+                                    ev.y,
+                                    WHITE,
+                                    16.0,
+                                );
+                                particles.add_sparkle(bird.x + BIRD_WIDTH + 10.0, bird.y);
+                                score_flash_white = 0.15;
+                            }
+
+                            check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
+                        }
+                        gap
+                    };
 
                     // Spawn coins & powerups when new pipes appear
                     if let Some((px, top_h, bot_y)) = spawned_gap {
@@ -329,58 +456,23 @@ async fn main() {
                         powerups.spawn_for_pipe(px, top_h, bot_y);
                     }
 
-                    if let Some(ev) = pipe_score_ev {
-                        // Apply score multiplier (ev.points is already added once by pipes.update)
-                        if score_multiplier > 1 {
-                            score += ev.points * (score_multiplier - 1);
-                        }
-
-                        let total_pts = ev.points * score_multiplier;
-                        combo += 1;
-
-                        if ev.is_golden {
-                            audio.play_golden();
+                    // Check for Close Shave near-miss bonus (+2 points) in Solo mode
+                    if game_mode == GameMode::Solo {
+                        if let Some((sx, sy)) = pipes.check_close_shave(bird.x, bird.y) {
+                            let shave_pts = 2 * score_multiplier;
+                            score += shave_pts;
+                            audio.play_close_shave();
+                            particles.add_sparkle(sx, sy);
+                            particles.add_sparkle(sx + 5.0, sy - 5.0);
                             popups.add(
-                                format!("+{} GOLDEN PIPE!", total_pts),
-                                ev.x,
-                                ev.y,
-                                Color::from_rgba(255, 215, 0, 255),
-                                18.0,
-                            );
-                            score_flash.trigger("GOLDEN PIPE! +5");
-                            particles.add_powerup_burst(ev.x, ev.y, Color::from_rgba(255, 215, 0, 255));
-                            score_flash_white = 0.25;
-                        } else {
-                            audio.play_score();
-                            popups.add(
-                                format!("+{}", total_pts),
-                                ev.x,
-                                ev.y,
-                                WHITE,
+                                format!("+{} CLOSE SHAVE!", shave_pts),
+                                sx,
+                                sy - 15.0,
+                                Color::from_rgba(64, 224, 255, 255),
                                 16.0,
                             );
-                            particles.add_sparkle(bird.x + BIRD_WIDTH + 10.0, bird.y);
-                            score_flash_white = 0.15;
+                            check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
                         }
-
-                        check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
-                    }
-
-                    // Check for Close Shave near-miss bonus (+2 points)
-                    if let Some((sx, sy)) = pipes.check_close_shave(bird.x, bird.y) {
-                        let shave_pts = 2 * score_multiplier;
-                        score += shave_pts;
-                        audio.play_close_shave();
-                        particles.add_sparkle(sx, sy);
-                        particles.add_sparkle(sx + 5.0, sy - 5.0);
-                        popups.add(
-                            format!("+{} CLOSE SHAVE!", shave_pts),
-                            sx,
-                            sy - 15.0,
-                            Color::from_rgba(64, 224, 255, 255),
-                            16.0,
-                        );
-                        check_score_events(score, difficulty, &mut weather, &mut achievements, &mut score_flash, combo);
                     }
 
                     // Update powerups (effective_dt for movement, raw_dt for ability timers)
@@ -417,7 +509,6 @@ async fn main() {
                             15.0,
                         );
 
-                        // Check coin achievements
                         if coins_this_game >= 10 {
                             achievements.try_unlock(Achievement::Collector);
                         }
@@ -436,49 +527,70 @@ async fn main() {
                     weather.update(dt);
                     particles.update(raw_dt);
 
-                    if tap {
-                        bird.flap();
-                        audio.play_flap();
-                    }
-
                     // Collision checking
-                    if !powerups.is_invulnerable() && check_collision(&bird, &pipes) {
-                        // Check if shield can absorb collision
-                        if powerups.pop_shield() {
-                            achievements.record_shield_used();
-                            audio.play_shield_break();
-                            particles.add_powerup_burst(
-                                bird.x + BIRD_WIDTH / 2.0,
-                                bird.y + BIRD_HEIGHT / 2.0,
-                                Color::from_rgba(64, 224, 255, 255),
-                            );
-                            screen_shake = 7.0;
-                            score_flash.trigger("SHIELD BROKEN!");
-                        } else {
-                            // Fatal hit
-                            state = GameState::Dying;
+                    if game_mode == GameMode::TwoPlayer {
+                        if alive1 && check_collision(&bird, &pipes) {
+                            alive1 = false;
                             bird.start_death();
+                            particles.add_explosion(bird.x + BIRD_WIDTH / 2.0, bird.y + BIRD_HEIGHT / 2.0);
+                            audio.play_hit();
+                            popups.add("P1 DOWN!", bird.x + 10.0, bird.y - 20.0, Color::from_rgba(255, 100, 100, 255), 16.0);
+                        }
+                        if alive2 && check_collision(&bird2, &pipes) {
+                            alive2 = false;
+                            bird2.start_death();
+                            particles.add_explosion(bird2.x + BIRD_WIDTH / 2.0, bird2.y + BIRD_HEIGHT / 2.0);
+                            audio.play_hit();
+                            popups.add("P2 DOWN!", bird2.x + 10.0, bird2.y - 20.0, Color::from_rgba(100, 180, 255, 255), 16.0);
+                        }
+                        if !alive1 && !alive2 {
+                            state = GameState::Dying;
                             screen_shake = 14.0;
                             combo = 0;
-                            particles.add_explosion(
-                                bird.x + BIRD_WIDTH / 2.0,
-                                bird.y + BIRD_HEIGHT / 2.0,
-                            );
-                            audio.play_hit();
-
                             if score > best_score {
                                 best_score = score;
                                 save_high_score(best_score);
                             }
                             stats.record_game(score, coins_this_game);
                             save_score_history(score, coins_this_game, difficulty, skin);
+                        }
+                    } else {
+                        // Solo collision checking
+                        if !powerups.is_invulnerable() && check_collision(&bird, &pipes) {
+                            if powerups.pop_shield() {
+                                achievements.record_shield_used();
+                                audio.play_shield_break();
+                                particles.add_powerup_burst(
+                                    bird.x + BIRD_WIDTH / 2.0,
+                                    bird.y + BIRD_HEIGHT / 2.0,
+                                    Color::from_rgba(64, 224, 255, 255),
+                                );
+                                screen_shake = 7.0;
+                                score_flash.trigger("SHIELD BROKEN!");
+                            } else {
+                                state = GameState::Dying;
+                                bird.start_death();
+                                screen_shake = 14.0;
+                                combo = 0;
+                                particles.add_explosion(
+                                    bird.x + BIRD_WIDTH / 2.0,
+                                    bird.y + BIRD_HEIGHT / 2.0,
+                                );
+                                audio.play_hit();
 
-                            // Lifetime achievements
-                            if stats.total_coins >= 50 {
-                                achievements.try_unlock(Achievement::CoinKing);
-                            }
-                            if stats.games_played >= 50 {
-                                achievements.try_unlock(Achievement::Veteran);
+                                if score > best_score {
+                                    best_score = score;
+                                    save_high_score(best_score);
+                                }
+                                stats.record_game(score, coins_this_game);
+                                save_score_history(score, coins_this_game, difficulty, skin);
+
+                                if stats.total_coins >= 50 {
+                                    achievements.try_unlock(Achievement::CoinKing);
+                                }
+                                if stats.games_played >= 50 {
+                                    achievements.try_unlock(Achievement::Veteran);
+                                }
                             }
                         }
                     }
@@ -486,12 +598,20 @@ async fn main() {
             }
 
             GameState::Dying => {
-                // Bird tumbles and falls
                 bird.update_death(dt);
+                if game_mode == GameMode::TwoPlayer {
+                    bird2.update_death(dt);
+                }
                 weather.update(dt);
                 particles.update(raw_dt);
 
-                if bird.death_done() {
+                let done = if game_mode == GameMode::TwoPlayer {
+                    bird.death_done() && bird2.death_done()
+                } else {
+                    bird.death_done()
+                };
+
+                if done {
                     state = GameState::GameOver;
                 }
             }
@@ -508,9 +628,19 @@ async fn main() {
                 {
                     state = GameState::Playing;
                     score = 0;
+                    score1 = 0;
+                    score2 = 0;
+                    alive1 = true;
+                    alive2 = true;
                     combo = 0;
                     coins_this_game = 0;
-                    bird = Bird::new_with_skin(skin);
+                    bird = if game_mode == GameMode::TwoPlayer {
+                        Bird::new_with_skin_at(75.0, skin)
+                    } else {
+                        Bird::new_with_skin_at(BIRD_X, skin)
+                    };
+                    skin2 = if skin == BirdSkin::Blue { BirdSkin::Red } else { BirdSkin::Blue };
+                    bird2 = Bird::new_with_skin_at(105.0, skin2);
                     pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
                     let initial_gaps = pipes.reset();
                     coin_mgr.reset();
@@ -521,6 +651,9 @@ async fn main() {
                         powerups.spawn_for_pipe(gap.0, gap.1, gap.2);
                     }
                     bird.flap();
+                    if game_mode == GameMode::TwoPlayer {
+                        bird2.flap();
+                    }
                     audio.play_flap();
                 }
             }
@@ -590,6 +723,9 @@ async fn main() {
         // Draw bird in all states except pure GameOver
         if state != GameState::GameOver {
             bird.draw_with_invuln(powerups.is_invulnerable(), game_time);
+            if game_mode == GameMode::TwoPlayer {
+                bird2.draw_with_invuln(false, game_time);
+            }
             if state == GameState::Playing {
                 powerups.draw_bird_auras(bird.x, bird.y, game_time);
             }
@@ -616,6 +752,7 @@ async fn main() {
         match state {
             GameState::Start => draw_start_screen(
                 game_time,
+                game_mode,
                 difficulty,
                 skin,
                 weather.current,
@@ -629,7 +766,11 @@ async fn main() {
             ),
             GameState::Playing => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
-                draw_hud(score, coins_this_game, fps, combo, audio.muted, &powerups);
+                if game_mode == GameMode::TwoPlayer {
+                    draw_hud_2p(score1, score2, alive1, alive2, skin, skin2, coins_this_game, audio.muted);
+                } else {
+                    draw_hud(score, coins_this_game, fps, combo, audio.muted, &powerups);
+                }
                 score_flash.draw();
                 achievements.draw_notification();
 
@@ -652,12 +793,20 @@ async fn main() {
             }
             GameState::Dying => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
-                draw_hud(score, coins_this_game, fps, 0, audio.muted, &powerups);
+                if game_mode == GameMode::TwoPlayer {
+                    draw_hud_2p(score1, score2, alive1, alive2, skin, skin2, coins_this_game, audio.muted);
+                } else {
+                    draw_hud(score, coins_this_game, fps, 0, audio.muted, &powerups);
+                }
                 achievements.draw_notification();
             }
             GameState::GameOver => {
-                draw_game_over(score, best_score, coins_this_game);
-                achievements.draw_summary();
+                if game_mode == GameMode::TwoPlayer {
+                    draw_game_over_2p(score1, score2, skin, skin2, coins_this_game);
+                } else {
+                    draw_game_over(score, best_score, coins_this_game);
+                    achievements.draw_summary();
+                }
                 achievements.draw_notification();
             }
         }

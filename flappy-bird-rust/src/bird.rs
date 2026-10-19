@@ -108,6 +108,12 @@ impl Bird {
         b
     }
 
+    pub fn new_with_skin_at(x: f32, skin: BirdSkin) -> Self {
+        let mut b = Self::new_with_skin(skin);
+        b.x = x;
+        b
+    }
+
     pub fn flap(&mut self) {
         self.vy = FLAP_STRENGTH;
         self.flap_timer = 8.0;

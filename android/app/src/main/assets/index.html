@@ -23,6 +23,19 @@
         <span class="brand-tag">PRO</span>
       </div>
 
+      <!-- Mode Selector Pills -->
+      <div class="mode-pill-bar">
+        <button id="btnModeSolo" class="mode-pill active" title="Single Player Solo Flight">
+          <span>🎮 Solo</span>
+        </button>
+        <button id="btnModeDuel" class="mode-pill" title="2-Player Split Screen Duel">
+          <span>⚔️ 2P Duel</span>
+        </button>
+        <a href="wasm/index.html" class="mode-pill wasm-pill" title="Play Rust WASM Engine">
+          <span>🦀 WASM</span>
+        </a>
+      </div>
+
       <div class="header-actions">
         <!-- Database Live Status Indicator -->
         <div id="dbStatusBadge" class="status-badge" title="Database Sync Status">
@@ -38,16 +51,24 @@
 
         <!-- Fullscreen Button -->
         <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen">⛶</button>
-
-        <!-- Link to Rust WASM Engine -->
-        <a href="wasm/index.html" class="btn-icon" title="Play Rust WASM Engine" style="text-decoration:none; color:inherit;">🦀</a>
       </div>
     </header>
 
     <!-- Main Game Viewport -->
     <main class="game-viewport">
-      <div class="canvas-wrapper">
+      <div id="canvasWrapper" class="canvas-wrapper">
         <canvas id="gameCanvas"></canvas>
+        <!-- 2P Mobile Split-Touch Zones (Only visible in Duel mode) -->
+        <div id="duelTouchOverlay" class="duel-touch-overlay" style="display: none;">
+          <div class="touch-zone zone-p1">
+            <span class="zone-badge">P1</span>
+            <span class="zone-hint">TAP / W</span>
+          </div>
+          <div class="touch-zone zone-p2">
+            <span class="zone-badge">P2</span>
+            <span class="zone-hint">TAP / UP</span>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -386,6 +407,16 @@
         document.exitFullscreen().catch(() => {});
       }
     });
+
+    // Mode Switcher Buttons (Solo vs Duel)
+    const btnModeSolo = document.getElementById('btnModeSolo');
+    const btnModeDuel = document.getElementById('btnModeDuel');
+    if (btnModeSolo) {
+      btnModeSolo.addEventListener('click', () => window.flappyGame.setMode('solo'));
+    }
+    if (btnModeDuel) {
+      btnModeDuel.addEventListener('click', () => window.flappyGame.setMode('duel'));
+    }
 
     // Mobile Controls
     document.getElementById('btnSkin').addEventListener('click', () => window.flappyGame.cycleSkin());

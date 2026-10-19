@@ -15,6 +15,7 @@ pub struct PipePair {
     pub top_height: f32,
     pub bottom_y: f32,
     pub scored: bool,
+    pub scored2: bool,
     pub width: f32,
     pub is_golden: bool,
     pub close_shaved: bool,
@@ -81,6 +82,7 @@ impl PipeManager {
             top_height,
             bottom_y,
             scored: false,
+            scored2: false,
             width: PIPE_WIDTH,
             is_golden,
             close_shaved: false,
@@ -169,6 +171,76 @@ impl PipeManager {
         }
 
         (score_event, spawned_gap)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_2p(
+        &mut self,
+        dt: f32,
+        score1: &mut u32,
+        score2: &mut u32,
+        bird1_x: f32,
+        bird1_alive: bool,
+        bird2_x: f32,
+        bird2_alive: bool,
+        time: f32,
+    ) -> (Option<PipeScoreEvent>, Option<PipeScoreEvent>, Option<(f32, f32, f32)>) {
+        let max_score = (*score1).max(*score2);
+        let speed = self.get_speed(max_score);
+        let mut score_event1 = None;
+        let mut score_event2 = None;
+
+        for p in &mut self.pipes {
+            p.x -= speed * dt;
+
+            // Apply oscillation
+            if p.oscillates {
+                let osc = (time * 1.8 + p.osc_phase).sin() * p.osc_amplitude;
+                let max_bound = (GAME_HEIGHT - GROUND_HEIGHT - self.gap - 50.0).max(50.0);
+                let new_top = (p.osc_center_top + osc).clamp(50.0, max_bound);
+                p.top_height = new_top;
+                p.bottom_y = new_top + self.gap;
+            }
+
+            // P1 score
+            if bird1_alive && !p.scored && p.x + p.width < bird1_x {
+                p.scored = true;
+                let pts = if p.is_golden { 5 } else { 1 };
+                *score1 += pts;
+                score_event1 = Some(PipeScoreEvent {
+                    points: pts,
+                    is_golden: p.is_golden,
+                    x: p.x + p.width / 2.0,
+                    y: p.top_height + self.gap / 2.0,
+                });
+            }
+
+            // P2 score
+            if bird2_alive && !p.scored2 && p.x + p.width < bird2_x {
+                p.scored2 = true;
+                let pts = if p.is_golden { 5 } else { 1 };
+                *score2 += pts;
+                score_event2 = Some(PipeScoreEvent {
+                    points: pts,
+                    is_golden: p.is_golden,
+                    x: p.x + p.width / 2.0,
+                    y: p.top_height + self.gap / 2.0,
+                });
+            }
+        }
+
+        self.pipes.retain(|p| p.x + p.width >= -20.0);
+
+        let mut spawned_gap = None;
+        if let Some(last) = self.pipes.last() {
+            if last.x < GAME_WIDTH - PIPE_SPACING + PIPE_WIDTH {
+                let next_x = last.x + PIPE_SPACING;
+                let gap = self.spawn_pipe(next_x, max_score);
+                spawned_gap = Some(gap);
+            }
+        }
+
+        (score_event1, score_event2, spawned_gap)
     }
 
     pub fn draw(&self, time: f32) {

@@ -50,8 +50,17 @@
   };
   let currentState = STATE.START;
 
+  // ─── Game Modes ─────────────────────────────────────────────────────────────
+  const MODE = {
+    SOLO: 'solo',
+    DUEL: 'duel',
+  };
+  let currentMode = MODE.SOLO;
+
   // ─── Game Variables ─────────────────────────────────────────────────────────
   let score = 0;
+  let score1 = 0;
+  let score2 = 0;
   let coins = 0;
   let pipesPassed = 0;
   let combo = 0;
@@ -73,205 +82,207 @@
   let weatherParticles = [];
   let stars = [];
 
-  // ─── Bird Entity ────────────────────────────────────────────────────────────
-  const bird = {
-    x: 80,
-    y: 260,
-    velY: 0,
-    rotation: 0,
-    wingAngle: 0,
-    wingDir: 1,
-    jumpTimer: 0,
-    alive: true,
-    tumbleSpeed: 0,
+  // ─── Bird Entity Factory ────────────────────────────────────────────────────
+  function createBird(startX, defaultSkinIdx, label) {
+    return {
+      x: startX,
+      startX: startX,
+      y: 260,
+      velY: 0,
+      rotation: 0,
+      wingAngle: 0,
+      wingDir: 1,
+      alive: true,
+      tumbleSpeed: 0,
+      skinIndex: defaultSkinIdx,
+      label: label,
 
-    reset() {
-      this.x = 80;
-      this.y = 260;
-      this.velY = 0;
-      this.rotation = 0;
-      this.wingAngle = 0;
-      this.alive = true;
-      this.tumbleSpeed = 0;
-    },
+      reset(startX) {
+        if (startX !== undefined) this.startX = startX;
+        this.x = this.startX;
+        this.y = 260;
+        this.velY = 0;
+        this.rotation = 0;
+        this.wingAngle = 0;
+        this.alive = true;
+        this.tumbleSpeed = 0;
+      },
 
-    jump() {
-      if (!this.alive) return;
-      this.velY = -320;
-      this.wingAngle = -0.5;
-      window.soundEngine.playFlap();
+      jump() {
+        if (!this.alive) return;
+        this.velY = -320;
+        this.wingAngle = -0.5;
+        window.soundEngine.playFlap();
 
-      // Mobile Haptic vibration
-      if (navigator.vibrate) {
-        navigator.vibrate(15);
-      }
-
-      // Feather puff particles
-      for (let i = 0; i < 3; i++) {
-        particles.push({
-          x: this.x + 5,
-          y: this.y + 15,
-          vx: -40 - Math.random() * 40,
-          vy: (Math.random() - 0.5) * 50,
-          life: 0.35,
-          maxLife: 0.35,
-          color: SKINS[currentSkinIndex].belly,
-          size: 3 + Math.random() * 2,
-        });
-      }
-    },
-
-    update(dt) {
-      if (currentState === STATE.START) {
-        // Gentle bobbing on start screen
-        this.y = 260 + Math.sin(Date.now() / 250) * 8;
-        this.rotation = Math.sin(Date.now() / 250) * 0.08;
-        this.wingAngle += dt * 8 * this.wingDir;
-        if (Math.abs(this.wingAngle) > 0.4) this.wingDir *= -1;
-        return;
-      }
-
-      if (currentState === STATE.PLAYING) {
-        this.velY += 980 * dt;
-        if (this.velY > 520) this.velY = 520;
-        this.y += this.velY * dt;
-
-        // Rotation interpolation
-        const targetRot = Math.min(Math.PI / 2.2, Math.max(-0.45, this.velY * 0.0028));
-        this.rotation += (targetRot - this.rotation) * dt * 10;
-
-        // Wing flapping
-        if (this.velY < 0) {
-          this.wingAngle += dt * 18 * this.wingDir;
-          if (Math.abs(this.wingAngle) > 0.6) this.wingDir *= -1;
-        } else {
-          this.wingAngle += (0 - this.wingAngle) * dt * 8;
+        if (navigator.vibrate) {
+          navigator.vibrate(15);
         }
-      } else if (currentState === STATE.DYING) {
-        // Dramatic death spin
-        this.velY += 1200 * dt;
-        this.y += this.velY * dt;
-        this.rotation += this.tumbleSpeed * dt;
-      }
-    },
 
-    draw() {
-      ctx.save();
-      ctx.translate(this.x + BIRD_WIDTH / 2, this.y + BIRD_HEIGHT / 2);
-      ctx.rotate(this.rotation);
+        const skin = SKINS[this.skinIndex % SKINS.length];
+        for (let i = 0; i < 3; i++) {
+          particles.push({
+            x: this.x + 5,
+            y: this.y + 15,
+            vx: -40 - Math.random() * 40,
+            vy: (Math.random() - 0.5) * 50,
+            life: 0.35,
+            maxLife: 0.35,
+            color: skin.belly,
+            size: 3 + Math.random() * 2,
+          });
+        }
+      },
 
-      const skin = SKINS[currentSkinIndex];
+      update(dt) {
+        if (currentState === STATE.START) {
+          const offset = this.startX === 70 ? 0 : Math.PI;
+          this.y = 260 + Math.sin(Date.now() / 250 + offset) * 8;
+          this.rotation = Math.sin(Date.now() / 250 + offset) * 0.08;
+          this.wingAngle += dt * 8 * this.wingDir;
+          if (Math.abs(this.wingAngle) > 0.4) this.wingDir *= -1;
+          return;
+        }
 
-      // Draw Shield Aura if active
-      if (powerUps.shield.active) {
-        const pulse = 1 + Math.sin(Date.now() / 100) * 0.08;
+        if (this.alive) {
+          this.velY += 980 * dt;
+          if (this.velY > 520) this.velY = 520;
+          this.y += this.velY * dt;
+
+          const targetRot = Math.min(Math.PI / 2.2, Math.max(-0.45, this.velY * 0.0028));
+          this.rotation += (targetRot - this.rotation) * dt * 10;
+
+          if (this.velY < 0) {
+            this.wingAngle += dt * 18 * this.wingDir;
+            if (Math.abs(this.wingAngle) > 0.6) this.wingDir *= -1;
+          } else {
+            this.wingAngle += (0 - this.wingAngle) * dt * 8;
+          }
+        } else {
+          // Dramatic death tumble
+          this.velY += 1200 * dt;
+          this.y += this.velY * dt;
+          this.rotation += this.tumbleSpeed * dt;
+        }
+      },
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x + BIRD_WIDTH / 2, this.y + BIRD_HEIGHT / 2);
+        ctx.rotate(this.rotation);
+
+        const skin = SKINS[this.skinIndex % SKINS.length];
+
+        // Draw Shield Aura if active
+        if ((this.label === 'P1' || currentMode === MODE.SOLO) && powerUps.shield.active) {
+          const pulse = 1 + Math.sin(Date.now() / 100) * 0.08;
+          ctx.beginPath();
+          ctx.arc(0, 0, 24 * pulse, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(70, 160, 255, 0.25)';
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#46A0FF';
+          ctx.stroke();
+        }
+
+        // Draw Magnet Aura if active
+        if ((this.label === 'P1' || currentMode === MODE.SOLO) && powerUps.magnet.active) {
+          ctx.beginPath();
+          ctx.arc(0, 0, 28, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // Bird Body Ellipse
         ctx.beginPath();
-        ctx.arc(0, 0, 24 * pulse, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(70, 160, 255, 0.25)';
+        ctx.ellipse(0, 0, BIRD_WIDTH / 2, BIRD_HEIGHT / 2, 0, 0, Math.PI * 2);
+        ctx.fillStyle = skin.body;
         ctx.fill();
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#46A0FF';
-        ctx.stroke();
-      }
-
-      // Draw Magnet Aura if active
-      if (powerUps.magnet.active) {
-        ctx.beginPath();
-        ctx.arc(0, 0, 28, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
         ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = skin.outline;
         ctx.stroke();
-        ctx.setLineDash([]);
-      }
 
-      // Bird Body Ellipse
-      ctx.beginPath();
-      ctx.ellipse(0, 0, BIRD_WIDTH / 2, BIRD_HEIGHT / 2, 0, 0, Math.PI * 2);
-      ctx.fillStyle = skin.body;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = skin.outline;
-      ctx.stroke();
-
-      // Belly
-      ctx.beginPath();
-      ctx.ellipse(-2, 4, BIRD_WIDTH / 3, BIRD_HEIGHT / 3, 0, 0, Math.PI);
-      ctx.fillStyle = skin.belly;
-      ctx.fill();
-
-      // Wing
-      ctx.save();
-      ctx.translate(-6, 0);
-      ctx.rotate(this.wingAngle);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2);
-      ctx.fillStyle = skin.wing;
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = skin.outline;
-      ctx.stroke();
-      ctx.restore();
-
-      // Eye
-      const eyeX = 8;
-      const eyeY = -4;
-      if (!this.alive) {
-        // X-eyes on death
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#222';
+        // Belly
         ctx.beginPath();
-        ctx.moveTo(eyeX - 4, eyeY - 4);
-        ctx.lineTo(eyeX + 4, eyeY + 4);
-        ctx.moveTo(eyeX + 4, eyeY - 4);
-        ctx.lineTo(eyeX - 4, eyeY + 4);
+        ctx.ellipse(-2, 4, BIRD_WIDTH / 3, BIRD_HEIGHT / 3, 0, 0, Math.PI);
+        ctx.fillStyle = skin.belly;
+        ctx.fill();
+
+        // Wing
+        ctx.save();
+        ctx.translate(-6, 0);
+        ctx.rotate(this.wingAngle);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2);
+        ctx.fillStyle = skin.wing;
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = skin.outline;
         ctx.stroke();
-      } else {
-        // Large retro eye
+        ctx.restore();
+
+        // Eye
+        const eyeX = 8;
+        const eyeY = -4;
+        if (!this.alive) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#222';
+          ctx.beginPath();
+          ctx.moveTo(eyeX - 4, eyeY - 4);
+          ctx.lineTo(eyeX + 4, eyeY + 4);
+          ctx.moveTo(eyeX + 4, eyeY - 4);
+          ctx.lineTo(eyeX - 4, eyeY + 4);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.ellipse(eyeX, eyeY, 6, 7, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = skin.outline;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(eyeX + 2, eyeY, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#000000';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(eyeX + 3, eyeY - 2, 1, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+        }
+
+        // Cheek blush
         ctx.beginPath();
-        ctx.ellipse(eyeX, eyeY, 6, 7, 0, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFFFFF';
+        ctx.arc(4, 3, 3, 0, Math.PI * 2);
+        ctx.fillStyle = skin.blush || '#FF8A80';
+        ctx.globalAlpha = 0.6;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        // Beak / Lips
+        ctx.beginPath();
+        ctx.moveTo(10, -1);
+        ctx.lineTo(20, 2);
+        ctx.lineTo(10, 5);
+        ctx.closePath();
+        ctx.fillStyle = '#FF5722';
         ctx.fill();
         ctx.lineWidth = 1.5;
         ctx.strokeStyle = skin.outline;
         ctx.stroke();
 
-        // Pupil
-        ctx.beginPath();
-        ctx.arc(eyeX + 2, eyeY, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#000000';
-        ctx.fill();
-
-        // Highlight
-        ctx.beginPath();
-        ctx.arc(eyeX + 3, eyeY - 2, 1, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fill();
+        ctx.restore();
       }
+    };
+  }
 
-      // Cheek blush
-      ctx.beginPath();
-      ctx.arc(4, 3, 3, 0, Math.PI * 2);
-      ctx.fillStyle = skin.blush;
-      ctx.globalAlpha = 0.6;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
-
-      // Beak / Lips
-      ctx.beginPath();
-      ctx.moveTo(10, -1);
-      ctx.lineTo(20, 2);
-      ctx.lineTo(10, 5);
-      ctx.closePath();
-      ctx.fillStyle = '#FF5722';
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = skin.outline;
-      ctx.stroke();
-
-      ctx.restore();
-    },
-  };
+  const bird1 = createBird(80, 0, 'P1');
+  const bird2 = createBird(110, 1, 'P2');
+  const bird = bird1; // alias for solo compatibility
 
   // ─── Power-Up System ────────────────────────────────────────────────────────
   const powerUps = {
@@ -406,100 +417,122 @@
           p.gapY = p.baseGapY + Math.sin(p.oscTime) * 35;
         }
 
-        // Passed pipe check
-        if (!p.passed && p.x + 52 < bird.x) {
-          p.passed = true;
-          pipesPassed++;
-          combo++;
-          if (combo > maxCombo) maxCombo = combo;
-
-          let points = 1 + diff.bonus;
-          if (p.golden) {
-            points = 5;
-            window.soundEngine.playGolden();
-            addPopup(bird.x, bird.y - 30, '+5 GOLDEN!', '#FFD700');
-            // Golden burst particles
-            for (let k = 0; k < 12; k++) {
-              particles.push({
-                x: p.x + 26,
-                y: p.gapY,
-                vx: (Math.random() - 0.5) * 160,
-                vy: (Math.random() - 0.5) * 160,
-                life: 0.6,
-                maxLife: 0.6,
-                color: '#FFD700',
-                size: 4 + Math.random() * 3,
-              });
-            }
-          } else {
+        if (currentMode === MODE.DUEL) {
+          // Player 1 scoring
+          if (!p.passed1 && bird1.alive && p.x + 52 < bird1.x) {
+            p.passed1 = true;
+            const pts = p.golden ? 5 : 1;
+            score1 += pts;
             window.soundEngine.playScore();
-            addPopup(bird.x, bird.y - 20, points > 1 ? `+${points}` : '+1', '#FFFFFF');
+            addPopup(bird1.x + 10, bird1.y - 20, p.golden ? 'P1 +5!' : 'P1 +1', '#FFD700');
+          }
+          // Player 2 scoring
+          if (!p.passed2 && bird2.alive && p.x + 52 < bird2.x) {
+            p.passed2 = true;
+            const pts = p.golden ? 5 : 1;
+            score2 += pts;
+            window.soundEngine.playScore();
+            addPopup(bird2.x + 10, bird2.y - 20, p.golden ? 'P2 +5!' : 'P2 +1', '#46A0FF');
+          }
+          score = Math.max(score1, score2);
+        } else {
+          // Solo passing pipe check
+          if (!p.passed && p.x + 52 < bird1.x) {
+            p.passed = true;
+            pipesPassed++;
+            combo++;
+            if (combo > maxCombo) maxCombo = combo;
+
+            let points = 1 + diff.bonus;
+            if (p.golden) {
+              points = 5;
+              window.soundEngine.playGolden();
+              addPopup(bird1.x, bird1.y - 30, '+5 GOLDEN!', '#FFD700');
+              for (let k = 0; k < 12; k++) {
+                particles.push({
+                  x: p.x + 26,
+                  y: p.gapY,
+                  vx: (Math.random() - 0.5) * 160,
+                  vy: (Math.random() - 0.5) * 160,
+                  life: 0.6,
+                  maxLife: 0.6,
+                  color: '#FFD700',
+                  size: 4 + Math.random() * 3,
+                });
+              }
+            } else {
+              window.soundEngine.playScore();
+              addPopup(bird1.x, bird1.y - 20, points > 1 ? `+${points}` : '+1', '#FFFFFF');
+            }
+
+            if (powerUps.doubleScore.active) {
+              points *= 2;
+            }
+
+            score += points;
+
+            if (combo >= 5 && combo % 5 === 0) {
+              addPopup(GAME_WIDTH / 2, 180, `🔥 ${combo}X COMBO!`, '#FF9800');
+            }
           }
 
-          if (powerUps.doubleScore.active) {
-            points *= 2;
-          }
+          // Close-shave near-miss check (skimming pipe lip within 14px)
+          if (!p.closeShaved && Math.abs(p.x + 26 - (bird1.x + BIRD_WIDTH / 2)) < 26) {
+            const topLipY = p.gapY - p.gap / 2;
+            const botLipY = p.gapY + p.gap / 2;
+            const birdTop = bird1.y;
+            const birdBot = bird1.y + BIRD_HEIGHT;
 
-          score += points;
+            const distTop = Math.abs(birdTop - topLipY);
+            const distBot = Math.abs(birdBot - botLipY);
 
-          // Combo notification
-          if (combo >= 5 && combo % 5 === 0) {
-            addPopup(GAME_WIDTH / 2, 180, `🔥 ${combo}X COMBO!`, '#FF9800');
-          }
-        }
+            if ((distTop < 14 || distBot < 14) && birdTop > topLipY - 5 && birdBot < botLipY + 5) {
+              p.closeShaved = true;
+              closeShaves++;
+              score += 2;
+              window.soundEngine.playCloseShave();
+              addPopup(bird1.x, bird1.y - 35, '⚡ CLOSE SHAVE! +2', '#00E5FF');
 
-        // Close-shave near-miss check (skimming pipe lip within 14px)
-        if (!p.closeShaved && Math.abs(p.x + 26 - (bird.x + BIRD_WIDTH / 2)) < 26) {
-          const topLipY = p.gapY - p.gap / 2;
-          const botLipY = p.gapY + p.gap / 2;
-          const birdTop = bird.y;
-          const birdBot = bird.y + BIRD_HEIGHT;
-
-          const distTop = Math.abs(birdTop - topLipY);
-          const distBot = Math.abs(birdBot - botLipY);
-
-          if ((distTop < 14 || distBot < 14) && birdTop > topLipY - 5 && birdBot < botLipY + 5) {
-            p.closeShaved = true;
-            closeShaves++;
-            score += 2;
-            window.soundEngine.playCloseShave();
-            addPopup(bird.x, bird.y - 35, '⚡ CLOSE SHAVE! +2', '#00E5FF');
-
-            // Spark particles
-            for (let k = 0; k < 8; k++) {
-              particles.push({
-                x: bird.x + BIRD_WIDTH,
-                y: distTop < 14 ? birdTop : birdBot,
-                vx: 50 + Math.random() * 80,
-                vy: (Math.random() - 0.5) * 80,
-                life: 0.4,
-                maxLife: 0.4,
-                color: '#00E5FF',
-                size: 2.5,
-              });
+              for (let k = 0; k < 8; k++) {
+                particles.push({
+                  x: bird1.x + BIRD_WIDTH,
+                  y: distTop < 14 ? birdTop : birdBot,
+                  vx: 50 + Math.random() * 80,
+                  vy: (Math.random() - 0.5) * 80,
+                  life: 0.4,
+                  maxLife: 0.4,
+                  color: '#00E5FF',
+                  size: 2.5,
+                });
+              }
             }
           }
         }
 
         // Magnet attraction for coin
+        const activeTarget = (currentMode === MODE.DUEL && !bird1.alive && bird2.alive) ? bird2 : bird1;
         if (p.hasCoin && !p.coinCollected) {
           const coinX = p.x + 26;
           const coinY = p.gapY;
           if (powerUps.magnet.active) {
-            const dist = Math.hypot(coinX - (bird.x + BIRD_WIDTH / 2), coinY - (bird.y + BIRD_HEIGHT / 2));
+            const dist = Math.hypot(coinX - (activeTarget.x + BIRD_WIDTH / 2), coinY - (activeTarget.y + BIRD_HEIGHT / 2));
             if (dist < 140) {
-              p.coinOffset = (p.coinOffset || 0) + (bird.x - coinX) * dt * 4;
+              p.coinOffset = (p.coinOffset || 0) + (activeTarget.x - coinX) * dt * 4;
             }
           }
 
           // Coin pickup collision
-          const bx = bird.x + BIRD_WIDTH / 2;
-          const by = bird.y + BIRD_HEIGHT / 2;
+          const bx = activeTarget.x + BIRD_WIDTH / 2;
+          const by = activeTarget.y + BIRD_HEIGHT / 2;
           if (Math.hypot(coinX + (p.coinOffset || 0) - bx, coinY - by) < 22) {
             p.coinCollected = true;
             coins++;
             const coinPts = powerUps.doubleScore.active ? 4 : 2;
             score += coinPts;
+            if (currentMode === MODE.DUEL) {
+              if (activeTarget === bird2) score2 += coinPts;
+              else score1 += coinPts;
+            }
             window.soundEngine.playCoin();
             addPopup(bx, by - 20, `+${coinPts} 🪙`, '#FFD700');
           }
@@ -925,52 +958,99 @@
   }
 
   // ─── Collisions & Hit Detection ─────────────────────────────────────────────
-  function checkCollision() {
+  function isBirdColliding(b) {
     const margin = 3.5;
-    const bx = bird.x + margin;
-    const by = bird.y + margin;
+    const bx = b.x + margin;
+    const by = b.y + margin;
     const bw = BIRD_WIDTH - margin * 2;
     const bh = BIRD_HEIGHT - margin * 2;
 
-    // Ground & Ceiling
     if (by + bh >= GAME_HEIGHT - GROUND_HEIGHT || by <= -20) {
-      triggerDeath();
-      return;
+      return true;
     }
 
-    // Pipe Collisions
     for (const p of pipes.list) {
       if (bx + bw > p.x && bx < p.x + 52) {
         const topLipY = p.gapY - p.gap / 2;
         const botLipY = p.gapY + p.gap / 2;
-
         if (by < topLipY || by + bh > botLipY) {
-          // If shield is active, absorb hit!
-          if (powerUps.shield.active) {
-            powerUps.shield.active = false;
-            window.soundEngine.playShieldBreak();
-            screenShake = 10;
-            addPopup(bird.x, bird.y, '💥 SHIELD SAVED YOU!', '#FF5252');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
-            // Burst shield particles
-            for (let k = 0; k < 16; k++) {
-              particles.push({
-                x: bird.x + BIRD_WIDTH / 2,
-                y: bird.y + BIRD_HEIGHT / 2,
-                vx: (Math.random() - 0.5) * 180,
-                vy: (Math.random() - 0.5) * 180,
-                life: 0.5,
-                maxLife: 0.5,
-                color: '#46A0FF',
-                size: 3 + Math.random() * 3,
-              });
-            }
-            return;
+  function checkCollision() {
+    if (currentMode === MODE.DUEL) {
+      if (bird1.alive && isBirdColliding(bird1)) {
+        bird1.alive = false;
+        bird1.velY = -220;
+        bird1.tumbleSpeed = 14;
+        screenShake = 10;
+        window.soundEngine.playHit();
+        addPopup(bird1.x + 10, bird1.y - 20, 'P1 DOWN!', '#FF5252');
+        for (let k = 0; k < 12; k++) {
+          particles.push({
+            x: bird1.x + BIRD_WIDTH / 2,
+            y: bird1.y + BIRD_HEIGHT / 2,
+            vx: (Math.random() - 0.5) * 120,
+            vy: (Math.random() - 0.5) * 120,
+            life: 0.5,
+            maxLife: 0.5,
+            color: SKINS[bird1.skinIndex % SKINS.length].body,
+            size: 3 + Math.random() * 3,
+          });
+        }
+      }
+
+      if (bird2.alive && isBirdColliding(bird2)) {
+        bird2.alive = false;
+        bird2.velY = -220;
+        bird2.tumbleSpeed = 14;
+        screenShake = 10;
+        window.soundEngine.playHit();
+        addPopup(bird2.x + 10, bird2.y - 20, 'P2 DOWN!', '#46A0FF');
+        for (let k = 0; k < 12; k++) {
+          particles.push({
+            x: bird2.x + BIRD_WIDTH / 2,
+            y: bird2.y + BIRD_HEIGHT / 2,
+            vx: (Math.random() - 0.5) * 120,
+            vy: (Math.random() - 0.5) * 120,
+            life: 0.5,
+            maxLife: 0.5,
+            color: SKINS[bird2.skinIndex % SKINS.length].body,
+            size: 3 + Math.random() * 3,
+          });
+        }
+      }
+
+      if (!bird1.alive && !bird2.alive) {
+        triggerDeath();
+      }
+    } else {
+      if (bird1.alive && isBirdColliding(bird1)) {
+        if (powerUps.shield.active) {
+          powerUps.shield.active = false;
+          window.soundEngine.playShieldBreak();
+          screenShake = 10;
+          addPopup(bird1.x, bird1.y, '💥 SHIELD SAVED YOU!', '#FF5252');
+          for (let k = 0; k < 16; k++) {
+            particles.push({
+              x: bird1.x + BIRD_WIDTH / 2,
+              y: bird1.y + BIRD_HEIGHT / 2,
+              vx: (Math.random() - 0.5) * 180,
+              vy: (Math.random() - 0.5) * 180,
+              life: 0.5,
+              maxLife: 0.5,
+              color: '#46A0FF',
+              size: 3 + Math.random() * 3,
+            });
           }
-
-          triggerDeath();
           return;
         }
+
+        triggerDeath();
       }
     }
   }
@@ -979,39 +1059,39 @@
     if (currentState !== STATE.PLAYING) return;
 
     currentState = STATE.DYING;
-    bird.alive = false;
-    bird.velY = -240;
-    bird.tumbleSpeed = 16;
+    if (currentMode === MODE.SOLO) {
+      bird1.alive = false;
+      bird1.velY = -240;
+      bird1.tumbleSpeed = 16;
+    }
     screenShake = 12;
     gameDuration = Math.round((Date.now() - gameStartTime) / 1000);
 
     window.soundEngine.playHit();
 
-    // Android Haptic vibration on crash
     if (navigator.vibrate) {
       navigator.vibrate([40, 30, 40]);
     }
 
-    // Determine Medal Rank
+    const effectiveScore = currentMode === MODE.DUEL ? Math.max(score1, score2) : score;
     let medal = 'None';
-    if (score >= 50) medal = 'Platinum';
-    else if (score >= 30) medal = 'Gold';
-    else if (score >= 20) medal = 'Silver';
-    else if (score >= 10) medal = 'Bronze';
+    if (effectiveScore >= 50) medal = 'Platinum';
+    else if (effectiveScore >= 30) medal = 'Gold';
+    else if (effectiveScore >= 20) medal = 'Silver';
+    else if (effectiveScore >= 10) medal = 'Bronze';
 
-    if (score > bestScore) {
-      bestScore = score;
+    if (effectiveScore > bestScore) {
+      bestScore = effectiveScore;
       localStorage.setItem('flappy_best_score', bestScore.toString());
     }
 
-    // Save score asynchronously to SQLite & IndexedDB Database
     const scoreData = {
       playerName: window.scoreDB.getPlayerName(),
-      score,
+      score: effectiveScore,
       coins,
       pipesPassed,
       difficulty: DIFFICULTIES[currentDiffIndex].name,
-      skin: SKINS[currentSkinIndex].name,
+      skin: currentMode === MODE.DUEL ? '2P Duel' : SKINS[currentSkinIndex].name,
       weather: WEATHERS[currentWeatherIndex],
       medal,
       combo: maxCombo,
@@ -1021,7 +1101,6 @@
 
     window.scoreDB.saveScore(scoreData).then(rec => {
       lastScoreRecord = rec;
-      // Refresh database modal data if open
       if (typeof window.refreshLeaderboardView === 'function') {
         window.refreshLeaderboardView();
       }
@@ -1029,92 +1108,153 @@
 
     setTimeout(() => {
       currentState = STATE.GAMEOVER;
+      const duelOverlay = document.getElementById('duelTouchOverlay');
+      if (duelOverlay) duelOverlay.style.display = 'none';
     }, 650);
   }
 
   // ─── UI Rendering (Start Screen, HUD, Game Over) ────────────────────────────
   function drawStartScreen() {
-    // Title Banner
     ctx.save();
     ctx.textAlign = 'center';
 
-    // Title Drop Shadow
+    // Title Drop Shadow & Text
     ctx.font = 'bold 36px "Trebuchet MS", sans-serif';
     ctx.fillStyle = '#543847';
-    ctx.fillText('FLAPPY BIRD', GAME_WIDTH / 2 + 3, 143);
+    ctx.fillText('FLAPPY BIRD', GAME_WIDTH / 2 + 3, 133);
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('FLAPPY BIRD', GAME_WIDTH / 2, 140);
+    ctx.fillText('FLAPPY BIRD', GAME_WIDTH / 2, 130);
 
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#FFE066';
-    ctx.fillText('★ PRO EDITION ★', GAME_WIDTH / 2, 168);
+    ctx.font = 'bold 15px Arial';
+    ctx.fillStyle = currentMode === MODE.DUEL ? '#00E5FF' : '#FFE066';
+    ctx.fillText(currentMode === MODE.DUEL ? '⚔️ 2 PLAYERS DUEL BATTLE ⚔️' : '★ PRO ARCADE EDITION ★', GAME_WIDTH / 2, 156);
 
     // Instructions Box
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    roundRect(ctx, 40, 350, 320, 190, 12, true);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    roundRect(ctx, 35, 335, 330, 215, 14, true);
 
     ctx.font = 'bold 15px Arial';
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('TAP OR PRESS SPACE TO FLAP', GAME_WIDTH / 2, 380);
+    if (currentMode === MODE.DUEL) {
+      ctx.fillText('TAP OR PRESS SPACE TO START DUEL', GAME_WIDTH / 2, 362);
+      ctx.font = 'bold 12px Arial';
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText('Player 1: Space / W / Left Screen Tap', GAME_WIDTH / 2, 390);
+      ctx.fillStyle = '#46A0FF';
+      ctx.fillText('Player 2: Up Arrow / K / Right Screen Tap', GAME_WIDTH / 2, 412);
+    } else {
+      ctx.fillText('TAP OR PRESS SPACE TO FLAP', GAME_WIDTH / 2, 362);
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#E0E0E0';
+      ctx.fillText(`🎮 Difficulty: ${DIFFICULTIES[currentDiffIndex].name} [Tap or 'D']`, GAME_WIDTH / 2, 390);
+      ctx.fillText(`🎨 Bird Skin: ${SKINS[currentSkinIndex].name} [Tap or 'C']`, GAME_WIDTH / 2, 412);
+    }
 
-    ctx.font = '13px Arial';
+    ctx.font = '12px Arial';
     ctx.fillStyle = '#E0E0E0';
-    ctx.fillText(`🎮 Difficulty: ${DIFFICULTIES[currentDiffIndex].name} [Tap or 'D']`, GAME_WIDTH / 2, 412);
-    ctx.fillText(`🎨 Bird Skin: ${SKINS[currentSkinIndex].name} [Tap or 'C']`, GAME_WIDTH / 2, 438);
-    ctx.fillText(`🌧️ Weather: ${WEATHERS[currentWeatherIndex]} [Tap or 'W']`, GAME_WIDTH / 2, 464);
-    ctx.fillText(`🌙 Sky Cycle: ${CYCLES[currentCycleIndex]} ['N']`, GAME_WIDTH / 2, 490);
-    ctx.fillText(`🏆 Press 'L' for High Score Database`, GAME_WIDTH / 2, 516);
+    ctx.fillText(`⚔️ Game Mode: ${currentMode === MODE.DUEL ? '2P DUEL' : 'SOLO'} [Press '2']`, GAME_WIDTH / 2, 436);
+    ctx.fillText(`🌧️ Weather: ${WEATHERS[currentWeatherIndex]} ['W']  |  🌙 Sky: ${CYCLES[currentCycleIndex]} ['N']`, GAME_WIDTH / 2, 460);
+    ctx.fillText(`🏆 High Scores & Database ['L']`, GAME_WIDTH / 2, 484);
+    ctx.fillText(`P: Pause | M: Mute Sound`, GAME_WIDTH / 2, 508);
 
-    // Player Gamer Tag Badge
-    ctx.font = 'bold 14px Arial';
+    // Pilot Tag
+    ctx.font = 'bold 13px Arial';
     ctx.fillStyle = '#FFFDE7';
-    ctx.fillText(`👤 Player: ${window.scoreDB.getPlayerName()}`, GAME_WIDTH / 2, 570);
+    ctx.fillText(`👤 Pilot: ${window.scoreDB.getPlayerName()}`, GAME_WIDTH / 2, 575);
 
     ctx.restore();
   }
 
   function drawHUD() {
-    // Current Score Big Counter
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 44px "Impact", "Arial Black", sans-serif';
 
-    // Drop shadow
-    ctx.fillStyle = '#000000';
-    ctx.fillText(score.toString(), GAME_WIDTH / 2 + 2, 62);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(score.toString(), GAME_WIDTH / 2, 60);
+    if (currentMode === MODE.DUEL) {
+      // 2-Player HUD
+      // Player 1 Card (Top Left)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      roundRect(ctx, 15, 14, 110, 52, 10, true);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#FFD700';
+      roundRect(ctx, 15, 14, 110, 52, 10, false);
 
-    // Coins Counter (Top Left)
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#FFD700';
-    ctx.fillText(`🪙 ${coins}`, 20, 35);
+      ctx.fillStyle = bird1.alive ? '#FFD700' : '#888';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'left';
+      const p1Title = bird1.alive ? (score1 > score2 ? '👑 P1 (GOLD)' : 'P1 (GOLD)') : 'P1 (OUT)';
+      ctx.fillText(p1Title, 25, 33);
 
-    // Combo Streak (Top Right)
-    if (combo >= 3) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 24px "Impact", Arial';
+      ctx.fillText(score1.toString(), 25, 57);
+
+      // VS
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 20px "Impact", Arial';
+      ctx.fillStyle = '#FFE066';
+      ctx.fillText('VS', GAME_WIDTH / 2, 48);
+
+      // Player 2 Card (Top Right)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      roundRect(ctx, GAME_WIDTH - 125, 14, 110, 52, 10, true);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#46A0FF';
+      roundRect(ctx, GAME_WIDTH - 125, 14, 110, 52, 10, false);
+
+      ctx.fillStyle = bird2.alive ? '#46A0FF' : '#888';
+      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#FF9800';
-      ctx.fillText(`🔥 ${combo}x`, GAME_WIDTH - 20, 35);
-    }
+      const p2Title = bird2.alive ? (score2 > score1 ? '👑 P2 (BLUE)' : 'P2 (BLUE)') : 'P2 (OUT)';
+      ctx.fillText(p2Title, GAME_WIDTH - 25, 33);
 
-    // Active Powerups Bar
-    let badgeX = 20;
-    const badgeY = 52;
-    if (powerUps.shield.active) {
-      drawPill(ctx, badgeX, badgeY, '🛡️ Shield', '#2979FF');
-      badgeX += 80;
-    }
-    if (powerUps.magnet.active) {
-      drawPill(ctx, badgeX, badgeY, `🧲 ${Math.ceil(powerUps.magnet.timer)}s`, '#FFD700');
-      badgeX += 70;
-    }
-    if (powerUps.slowmo.active) {
-      drawPill(ctx, badgeX, badgeY, `⏱️ ${Math.ceil(powerUps.slowmo.timer)}s`, '#00E5FF');
-      badgeX += 70;
-    }
-    if (powerUps.doubleScore.active) {
-      drawPill(ctx, badgeX, badgeY, `2️⃣ ${Math.ceil(powerUps.doubleScore.timer)}s`, '#FF9100');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 24px "Impact", Arial';
+      ctx.fillText(score2.toString(), GAME_WIDTH - 25, 57);
+
+      // Coins
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(`🪙 ${coins}`, GAME_WIDTH / 2, 75);
+    } else {
+      // Solo HUD
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 44px "Impact", "Arial Black", sans-serif';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(score.toString(), GAME_WIDTH / 2 + 2, 62);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(score.toString(), GAME_WIDTH / 2, 60);
+
+      // Coins Counter
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(`🪙 ${coins}`, 20, 35);
+
+      // Combo Streak
+      if (combo >= 3) {
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#FF9800';
+        ctx.fillText(`🔥 ${combo}x`, GAME_WIDTH - 20, 35);
+      }
+
+      // Active Powerups Bar
+      let badgeX = 20;
+      const badgeY = 52;
+      if (powerUps.shield.active) {
+        drawPill(ctx, badgeX, badgeY, '🛡️ Shield', '#2979FF');
+        badgeX += 80;
+      }
+      if (powerUps.magnet.active) {
+        drawPill(ctx, badgeX, badgeY, `🧲 ${Math.ceil(powerUps.magnet.timer)}s`, '#FFD700');
+        badgeX += 70;
+      }
+      if (powerUps.slowmo.active) {
+        drawPill(ctx, badgeX, badgeY, `⏱️ ${Math.ceil(powerUps.slowmo.timer)}s`, '#00E5FF');
+        badgeX += 70;
+      }
+      if (powerUps.doubleScore.active) {
+        drawPill(ctx, badgeX, badgeY, `2️⃣ ${Math.ceil(powerUps.doubleScore.timer)}s`, '#FF9100');
+      }
     }
 
     ctx.restore();
@@ -1124,85 +1264,171 @@
     ctx.save();
     ctx.textAlign = 'center';
 
-    // Game Over Banner
-    ctx.font = 'bold 36px "Trebuchet MS", sans-serif';
-    ctx.fillStyle = '#543847';
-    ctx.fillText('GAME OVER', GAME_WIDTH / 2 + 3, 143);
-    ctx.fillStyle = '#FF5252';
-    ctx.fillText('GAME OVER', GAME_WIDTH / 2, 140);
+    if (currentMode === MODE.DUEL) {
+      // 2P Duel Game Over Banner
+      ctx.font = 'bold 32px "Trebuchet MS", sans-serif';
+      ctx.fillStyle = '#543847';
+      ctx.fillText('DUEL FINISHED!', GAME_WIDTH / 2 + 2, 132);
+      ctx.fillStyle = '#FFE066';
+      ctx.fillText('DUEL FINISHED!', GAME_WIDTH / 2, 130);
 
-    // Scoreboard Panel
-    const px = 40;
-    const py = 180;
-    const pw = 320;
-    const ph = 240;
+      // Winner text
+      const winner = score1 > score2 ? '👑 PLAYER 1 WINS!' : score2 > score1 ? '👑 PLAYER 2 WINS!' : '🤝 IT\'S A DRAW!';
+      const winColor = score1 > score2 ? '#FFD700' : score2 > score1 ? '#46A0FF' : '#FFFFFF';
+      ctx.font = 'bold 22px Arial';
+      ctx.fillStyle = winColor;
+      ctx.fillText(winner, GAME_WIDTH / 2, 165);
 
-    ctx.fillStyle = '#DED895';
-    roundRect(ctx, px, py, pw, ph, 14, true);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#543847';
-    roundRect(ctx, px, py, pw, ph, 14, false);
+      // Duel Scorecard
+      const px = 35;
+      const py = 185;
+      const pw = 330;
+      const ph = 230;
 
-    // Inner score details
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 15px Arial';
-    ctx.fillStyle = '#8B4513';
-    ctx.fillText('SCORE', px + 24, py + 45);
-    ctx.textAlign = 'right';
-    ctx.font = 'bold 24px "Impact", Arial';
-    ctx.fillStyle = '#000000';
-    ctx.fillText(score.toString(), px + pw - 24, py + 46);
+      ctx.fillStyle = '#DED895';
+      roundRect(ctx, px, py, pw, ph, 14, true);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#543847';
+      roundRect(ctx, px, py, pw, ph, 14, false);
 
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 15px Arial';
-    ctx.fillStyle = '#8B4513';
-    ctx.fillText('BEST SCORE', px + 24, py + 85);
-    ctx.textAlign = 'right';
-    ctx.font = 'bold 24px "Impact", Arial';
-    ctx.fillStyle = score >= bestScore && score > 0 ? '#E91E63' : '#000000';
-    ctx.fillText(bestScore.toString(), px + pw - 24, py + 86);
+      // P1 Column
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#B8860B';
+      ctx.fillText('PLAYER 1', px + 80, py + 35);
+      ctx.font = 'bold 36px "Impact", Arial';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(score1.toString(), px + 80, py + 80);
+      if (score1 >= score2 && score1 > 0) {
+        ctx.font = 'bold 13px Arial';
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillText('★ WINNER ★', px + 80, py + 108);
+      }
 
-    // Medal
-    let medalEmoji = '⚪ None';
-    let medalColor = '#757575';
-    if (score >= 50) { medalEmoji = '💎 Platinum'; medalColor = '#00E5FF'; }
-    else if (score >= 30) { medalEmoji = '🥇 Gold'; medalColor = '#FFD700'; }
-    else if (score >= 20) { medalEmoji = '🥈 Silver'; medalColor = '#C0C0C0'; }
-    else if (score >= 10) { medalEmoji = '🥉 Bronze'; medalColor = '#CD7F32'; }
+      // Divider
+      ctx.beginPath();
+      ctx.moveTo(px + pw / 2, py + 15);
+      ctx.lineTo(px + pw / 2, py + 130);
+      ctx.strokeStyle = '#BDB76B';
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 15px Arial';
-    ctx.fillStyle = '#8B4513';
-    ctx.fillText('MEDAL EARNED', px + 24, py + 125);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = medalColor;
-    ctx.fillText(medalEmoji, px + pw - 24, py + 125);
+      // P2 Column
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#1E5AB4';
+      ctx.fillText('PLAYER 2', px + pw - 80, py + 35);
+      ctx.font = 'bold 36px "Impact", Arial';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(score2.toString(), px + pw - 80, py + 80);
+      if (score2 >= score1 && score2 > 0) {
+        ctx.font = 'bold 13px Arial';
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillText('★ WINNER ★', px + pw - 80, py + 108);
+      }
 
-    // Stats breakdown row
-    ctx.textAlign = 'center';
-    ctx.font = '12px Arial';
-    ctx.fillStyle = '#555555';
-    ctx.fillText(`🪙 Coins: ${coins}  |  🔥 Max Combo: ${maxCombo}x  |  ⚡ Shaves: ${closeShaves}`, GAME_WIDTH / 2, py + 165);
+      // Bottom info
+      ctx.font = '13px Arial';
+      ctx.fillStyle = '#555555';
+      ctx.fillText(`🪙 Coins: ${coins}  |  Difficulty: ${DIFFICULTIES[currentDiffIndex].name}`, GAME_WIDTH / 2, py + 155);
 
-    // Database Sync status
-    ctx.font = 'bold 12px Arial';
-    if (lastScoreRecord && lastScoreRecord.synced) {
-      ctx.fillStyle = '#2E7D32';
-      const rankText = lastScoreRecord.rank ? ` [Rank #${lastScoreRecord.rank}]` : '';
-      ctx.fillText(`✅ Saved to SQLite Database${rankText}`, GAME_WIDTH / 2, py + 200);
+      // Database status
+      ctx.font = 'bold 12px Arial';
+      if (lastScoreRecord && lastScoreRecord.synced) {
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillText(`✅ Duel Result Recorded in SQLite Database`, GAME_WIDTH / 2, py + 185);
+      } else {
+        ctx.fillStyle = '#F57F17';
+        ctx.fillText(`💾 Duel Result Saved Locally`, GAME_WIDTH / 2, py + 185);
+      }
+
+      // Rematch prompt
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText('TAP OR PRESS SPACE FOR REMATCH', GAME_WIDTH / 2, 460);
+      ctx.font = '13px Arial';
+      ctx.fillStyle = '#FFE066';
+      ctx.fillText('Press [2] to switch to Solo Mode', GAME_WIDTH / 2, 490);
     } else {
-      ctx.fillStyle = '#F57F17';
-      ctx.fillText(`💾 Saved to Local Storage (Offline)`, GAME_WIDTH / 2, py + 200);
+      // Solo Game Over Banner
+      ctx.font = 'bold 36px "Trebuchet MS", sans-serif';
+      ctx.fillStyle = '#543847';
+      ctx.fillText('GAME OVER', GAME_WIDTH / 2 + 3, 143);
+      ctx.fillStyle = '#FF5252';
+      ctx.fillText('GAME OVER', GAME_WIDTH / 2, 140);
+
+      // Scoreboard Panel
+      const px = 40;
+      const py = 180;
+      const pw = 320;
+      const ph = 240;
+
+      ctx.fillStyle = '#DED895';
+      roundRect(ctx, px, py, pw, ph, 14, true);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#543847';
+      roundRect(ctx, px, py, pw, ph, 14, false);
+
+      // Inner score details
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px Arial';
+      ctx.fillStyle = '#8B4513';
+      ctx.fillText('SCORE', px + 24, py + 45);
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 24px "Impact", Arial';
+      ctx.fillStyle = '#000000';
+      ctx.fillText(score.toString(), px + pw - 24, py + 46);
+
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px Arial';
+      ctx.fillStyle = '#8B4513';
+      ctx.fillText('BEST SCORE', px + 24, py + 85);
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 24px "Impact", Arial';
+      ctx.fillStyle = score >= bestScore && score > 0 ? '#E91E63' : '#000000';
+      ctx.fillText(bestScore.toString(), px + pw - 24, py + 86);
+
+      // Medal
+      let medalEmoji = '⚪ None';
+      let medalColor = '#757575';
+      if (score >= 50) { medalEmoji = '💎 Platinum'; medalColor = '#00E5FF'; }
+      else if (score >= 30) { medalEmoji = '🥇 Gold'; medalColor = '#FFD700'; }
+      else if (score >= 20) { medalEmoji = '🥈 Silver'; medalColor = '#C0C0C0'; }
+      else if (score >= 10) { medalEmoji = '🥉 Bronze'; medalColor = '#CD7F32'; }
+
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px Arial';
+      ctx.fillStyle = '#8B4513';
+      ctx.fillText('MEDAL EARNED', px + 24, py + 125);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = medalColor;
+      ctx.fillText(medalEmoji, px + pw - 24, py + 125);
+
+      // Stats breakdown row
+      ctx.textAlign = 'center';
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#555555';
+      ctx.fillText(`🪙 Coins: ${coins}  |  🔥 Max Combo: ${maxCombo}x  |  ⚡ Shaves: ${closeShaves}`, GAME_WIDTH / 2, py + 165);
+
+      // Database Sync status
+      ctx.font = 'bold 12px Arial';
+      if (lastScoreRecord && lastScoreRecord.synced) {
+        ctx.fillStyle = '#2E7D32';
+        const rankText = lastScoreRecord.rank ? ` [Rank #${lastScoreRecord.rank}]` : '';
+        ctx.fillText(`✅ Saved to SQLite Database${rankText}`, GAME_WIDTH / 2, py + 200);
+      } else {
+        ctx.fillStyle = '#F57F17';
+        ctx.fillText(`💾 Saved to Local Storage (Offline)`, GAME_WIDTH / 2, py + 200);
+      }
+
+      // Restart prompt
+      ctx.font = 'bold 16px Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText('TAP OR PRESS SPACE TO RESTART', GAME_WIDTH / 2, 465);
+
+      ctx.font = '13px Arial';
+      ctx.fillStyle = '#FFE066';
+      ctx.fillText('Press [2] to play 2-Player Duel Mode', GAME_WIDTH / 2, 495);
     }
-
-    // Restart prompt
-    ctx.font = 'bold 16px Arial';
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('TAP OR PRESS SPACE TO RESTART', GAME_WIDTH / 2, 465);
-
-    ctx.font = '13px Arial';
-    ctx.fillStyle = '#FFE066';
-    ctx.fillText('Press [L] to view Leaderboard & Database', GAME_WIDTH / 2, 495);
 
     ctx.restore();
   }
@@ -1231,43 +1457,113 @@
   }
 
   // ─── Input & Event Handling ────────────────────────────────────────────────
-  function handleAction() {
-    window.soundEngine.ensureContext();
+  function setMode(mode) {
+    currentMode = mode;
+    const canvasWrap = document.getElementById('canvasWrapper');
+    const duelOverlay = document.getElementById('duelTouchOverlay');
+    const btnSolo = document.getElementById('btnModeSolo');
+    const btnDuel = document.getElementById('btnModeDuel');
 
-    if (currentState === STATE.START) {
-      currentState = STATE.PLAYING;
-      score = 0;
-      coins = 0;
-      pipesPassed = 0;
-      combo = 0;
-      maxCombo = 0;
-      closeShaves = 0;
-      gameStartTime = Date.now();
-      lastScoreRecord = null;
-      bird.reset();
-      pipes.reset();
-      powerUps.reset();
-      bird.jump();
+    if (btnSolo && btnDuel) {
+      if (mode === MODE.DUEL) {
+        btnSolo.classList.remove('active');
+        btnDuel.classList.add('active');
+        if (canvasWrap) canvasWrap.classList.add('duel-active');
+      } else {
+        btnSolo.classList.add('active');
+        btnDuel.classList.remove('active');
+        if (canvasWrap) canvasWrap.classList.remove('duel-active');
+      }
+    }
+
+    if (duelOverlay) {
+      duelOverlay.style.display = (mode === MODE.DUEL && currentState === STATE.PLAYING) ? 'flex' : 'none';
+    }
+
+    if (currentState === STATE.START || currentState === STATE.GAMEOVER) {
+      resetGameForMode();
+    }
+  }
+
+  function resetGameForMode() {
+    if (currentMode === MODE.DUEL) {
+      bird1.skinIndex = currentSkinIndex;
+      bird2.skinIndex = (currentSkinIndex + 1) % SKINS.length;
+      bird1.reset(70);
+      bird2.reset(105);
+    } else {
+      bird1.skinIndex = currentSkinIndex;
+      bird1.reset(80);
+    }
+  }
+
+  function handleActionP1() {
+    window.soundEngine.ensureContext();
+    if (currentState === STATE.START || currentState === STATE.GAMEOVER) {
+      startNewGame();
     } else if (currentState === STATE.PLAYING) {
-      bird.jump();
-    } else if (currentState === STATE.GAMEOVER) {
-      currentState = STATE.START;
-      bird.reset();
-      pipes.reset();
-      powerUps.reset();
+      if (bird1.alive) bird1.jump();
+    }
+  }
+
+  function handleActionP2() {
+    window.soundEngine.ensureContext();
+    if (currentState === STATE.START || currentState === STATE.GAMEOVER) {
+      startNewGame();
+    } else if (currentState === STATE.PLAYING) {
+      if (currentMode === MODE.DUEL && bird2.alive) {
+        bird2.jump();
+      } else if (currentMode === MODE.SOLO && bird1.alive) {
+        bird1.jump();
+      }
+    }
+  }
+
+  function startNewGame() {
+    currentState = STATE.PLAYING;
+    score = 0;
+    score1 = 0;
+    score2 = 0;
+    coins = 0;
+    pipesPassed = 0;
+    combo = 0;
+    maxCombo = 0;
+    closeShaves = 0;
+    gameStartTime = Date.now();
+    lastScoreRecord = null;
+
+    resetGameForMode();
+    pipes.reset();
+    powerUps.reset();
+
+    bird1.jump();
+    if (currentMode === MODE.DUEL) {
+      bird2.jump();
+    }
+
+    const duelOverlay = document.getElementById('duelTouchOverlay');
+    if (duelOverlay) {
+      duelOverlay.style.display = currentMode === MODE.DUEL ? 'flex' : 'none';
     }
   }
 
   // Keyboard controls
   window.addEventListener('keydown', e => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
+    if (e.code === 'Space' || e.code === 'KeyW') {
       e.preventDefault();
-      handleAction();
+      handleActionP1();
+    } else if (e.code === 'ArrowUp' || e.code === 'KeyK') {
+      e.preventDefault();
+      handleActionP2();
+    } else if (e.code === 'Digit2' || e.code === 'Tab') {
+      e.preventDefault();
+      setMode(currentMode === MODE.SOLO ? MODE.DUEL : MODE.SOLO);
+      addPopup(GAME_WIDTH / 2, 330, `MODE: ${currentMode === MODE.DUEL ? '2P DUEL' : 'SOLO'}`, '#00E5FF');
     } else if (e.code === 'KeyD') {
       cycleDifficulty();
     } else if (e.code === 'KeyC') {
       cycleSkin();
-    } else if (e.code === 'KeyW') {
+    } else if (e.code === 'KeyW' && currentState !== STATE.PLAYING) {
       cycleWeather();
     } else if (e.code === 'KeyN') {
       cycleCycle();
@@ -1283,10 +1579,21 @@
     }
   });
 
-  // Touch & Pointer controls (Mobile / Android)
+  // Touch & Pointer controls (Mobile / Android / Click)
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
-    handleAction();
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+
+    if (currentMode === MODE.DUEL && currentState === STATE.PLAYING) {
+      if (clickX < rect.width / 2) {
+        handleActionP1();
+      } else {
+        handleActionP2();
+      }
+    } else {
+      handleActionP1();
+    }
   });
 
   function cycleDifficulty() {
@@ -1296,6 +1603,8 @@
 
   function cycleSkin() {
     currentSkinIndex = (currentSkinIndex + 1) % SKINS.length;
+    bird1.skinIndex = currentSkinIndex;
+    bird2.skinIndex = (currentSkinIndex + 1) % SKINS.length;
     addPopup(GAME_WIDTH / 2, 330, `SKIN: ${SKINS[currentSkinIndex].name}`, SKINS[currentSkinIndex].body);
   }
 
@@ -1349,9 +1658,13 @@
       // 4. Ground
       drawGround(dt);
 
-      // 5. Bird
-      bird.update(dt);
-      bird.draw();
+      // 5. Bird(s)
+      bird1.update(dt);
+      bird1.draw();
+      if (currentMode === MODE.DUEL) {
+        bird2.update(dt);
+        bird2.draw();
+      }
 
       // 6. Collisions
       if (currentState === STATE.PLAYING) {
@@ -1393,7 +1706,11 @@
 
   // Expose methods for UI buttons
   window.flappyGame = {
-    handleAction,
+    handleAction: handleActionP1,
+    handleActionP1,
+    handleActionP2,
+    setMode,
+    getMode: () => currentMode,
     cycleDifficulty,
     cycleSkin,
     cycleWeather,

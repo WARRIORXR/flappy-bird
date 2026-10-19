@@ -45,14 +45,16 @@ html, body {
 .header-bar {
   display: flex;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 12px;
-  background: var(--panel-bg);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 8px 14px;
+  background: rgba(30, 34, 53, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   z-index: 10;
 }
 
@@ -76,6 +78,54 @@ html, body {
   padding: 2px 6px;
   border-radius: 6px;
   font-weight: 900;
+}
+
+/* Mode Switcher Pill Bar */
+.mode-pill-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 2px;
+}
+
+.mode-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mode-pill:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mode-pill.active {
+  background: linear-gradient(135deg, #00E5FF, #2979FF);
+  color: #000;
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(0, 229, 255, 0.4);
+}
+
+.mode-pill.wasm-pill {
+  color: #FF7043;
+}
+
+.mode-pill.wasm-pill:hover {
+  background: rgba(255, 112, 67, 0.15);
+  color: #FF8A65;
 }
 
 .header-actions {
@@ -151,11 +201,18 @@ html, body {
   position: relative;
   aspect-ratio: 4 / 7;
   height: 100%;
-  max-height: 84vh;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-  border-radius: 12px;
+  max-height: 82vh;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), 0 0 60px rgba(0, 229, 255, 0.12);
+  border-radius: 16px;
   overflow: hidden;
-  border: 2px solid #333a56;
+  border: 2px solid rgba(0, 229, 255, 0.25);
+  background: #000;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.canvas-wrapper.duel-active {
+  border-color: rgba(255, 215, 0, 0.35);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), 0 0 60px rgba(255, 215, 0, 0.15);
 }
 
 canvas#gameCanvas {
@@ -165,18 +222,77 @@ canvas#gameCanvas {
   touch-action: none;
 }
 
+/* 2P Mobile Split-Touch Zones */
+.duel-touch-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.touch-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 24px;
+  transition: background 0.15s ease;
+}
+
+.zone-p1 {
+  border-right: 1px dashed rgba(255, 215, 0, 0.25);
+}
+
+.zone-p2 {
+  border-left: 1px dashed rgba(70, 160, 255, 0.25);
+}
+
+.zone-badge {
+  font-size: 13px;
+  font-weight: 900;
+  padding: 4px 12px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+.zone-p1 .zone-badge {
+  background: rgba(255, 215, 0, 0.2);
+  color: #FFD700;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+}
+
+.zone-p2 .zone-badge {
+  background: rgba(70, 160, 255, 0.2);
+  color: #46A0FF;
+  border: 1px solid rgba(70, 160, 255, 0.4);
+}
+
+.zone-hint {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
 /* Touch Control Overlay for Mobile */
 .mobile-controls-bar {
   display: flex;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   justify-content: space-around;
   align-items: center;
   padding: 6px;
   gap: 6px;
-  background: var(--panel-bg);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  background: rgba(30, 34, 53, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 10;
 }
 

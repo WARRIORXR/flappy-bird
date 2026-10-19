@@ -9,8 +9,8 @@
 [![Latest Release](https://img.shields.io/github/v/release/WARRIORXR/flappy-bird?style=for-the-badge&logo=github&color=007ec6)](https://github.com/WARRIORXR/flappy-bird/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Web%20%7C%20Android%20%7C%20macOS%20%7C%20Linux-34a853.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
-[![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20IndexedDB-003B57.svg?style=for-the-badge&logo=sqlite)](https://github.com/WARRIORXR/flappy-bird)
-[![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare-f38020.svg?style=for-the-badge&logo=cloudflare)](https://flappy-bird-pro.phrygian-windflower.workers.dev)
+[![Mode](https://img.shields.io/badge/Mode-Solo%20%2B%202P%20Duel-FF5722.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
+[![Cloudflare](https://img.shields.io/badge/Deployed%20on-Cloudflare-f38020.svg?style=for-the-badge&logo=cloudflare)](https://flappy-bird-pro.chill-fox.workers.dev)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird/pulls)
 
 <p align="center">
@@ -89,29 +89,47 @@
 
 ---
 
-## 📦 Download Executable
+## 📦 Download Executables & Multi-Platform Releases
 
-> **Ready to Play?** No Rust compiler or toolchain needed! Download the standalone Windows executable directly:
+> **Ready to Play?** No Rust compiler or toolchain needed! Standalone native executables are ready to play across all desktop platforms:
 
-| Platform | File | Direct Download Link | Size |
+| Platform | Target Architecture | Download Link | Build Type |
 |:---|:---|:---:|:---:|
-| 🪟 **Windows (x64)** | `flappy-bird-rust.exe` | [📥 **Download v1.3.0 .exe**](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.3.0/flappy-bird-rust.exe) | ~834 KB |
-| 📁 **In-Repo Mirror** | `flappy-bird-rust.exe` | [📥 **flappy-bird-rust.exe**](flappy-bird-rust.exe) | ~834 KB |
+| 🪟 **Windows** | x86_64 (`.exe`) | [📥 **flappy-bird-rust.exe (v1.5.0)**](flappy-bird-rust.exe) | Standalone Native Binary (~834 KB) |
+| 🐧 **Linux** | x86_64 (`glibc / alsa`) | [📥 **flappy-bird-linux**](https://github.com/WARRIORXR/flappy-bird/releases/latest) | Standalone Native Binary |
+| 🍎 **macOS** | Apple Silicon (`M1/M2/M3/M4`) | [📥 **flappy-bird-macos-arm64**](https://github.com/WARRIORXR/flappy-bird/releases/latest) | Standalone Native Binary |
+| 🍏 **macOS** | Intel (`x86_64`) | [📥 **flappy-bird-macos-x64**](https://github.com/WARRIORXR/flappy-bird/releases/latest) | Standalone Native Binary |
 
-*Double-click `flappy-bird-rust.exe` to play instantly!*
+*On Windows, double-click `flappy-bird-rust.exe` to play instantly!*  
+*On Linux / macOS, run `chmod +x flappy-bird-* && ./flappy-bird-*` to launch!*
 
 ---
 
 ## 🚀 Quick Start
 
 ### 🌐 Play Live in Browser (Cloudflare Edge Global CDN)
-> **Zero Installation Required!** Play directly on desktop or mobile:  
+> **Zero Installation Required!** Play directly on desktop, tablet, or smartphone:  
+> 🔗 [**https://flappy-bird-pro.chill-fox.workers.dev**](https://flappy-bird-pro.chill-fox.workers.dev)  
 > 🔗 [**https://flappy-bird-pro.phrygian-windflower.workers.dev**](https://flappy-bird-pro.phrygian-windflower.workers.dev)
 
 ### 🪟 Play on Windows (Desktop Executable)
-Just download [`flappy-bird-rust.exe`](https://github.com/WARRIORXR/flappy-bird/releases/download/v1.3.0/flappy-bird-rust.exe) and double-click to launch!
+Just download [`flappy-bird-rust.exe`](flappy-bird-rust.exe) and double-click to launch!
 
-### Build from Source
+### 🐧 Build & Run on Linux
+Run our one-click automated build script:
+```bash
+chmod +x build_linux.sh
+./build_linux.sh
+```
+
+### 🍎 Build & Run on macOS
+Run our one-click automated build script:
+```bash
+chmod +x build_macos.sh
+./build_macos.sh
+```
+
+### Build from Source (Any Platform)
 Make sure you have the Rust toolchain installed (1.70 or higher). If needed, install via [rustup.rs](https://rustup.rs):
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -128,12 +146,26 @@ cargo run --release
 
 ---
 
-## 🎮 Controls
+## 🎮 Controls & Two-Player Duel Mode
+
+### ⚔️ Local Two-Player Battle / Duel
+Challenge a friend on the same keyboard, touchscreen, or mobile device!
+- **Mode Toggle**: Press <kbd>2</kbd> or <kbd>Tab</kbd> on desktop, or tap `[ ⚔️ 2P Duel ]` in the clean top header.
+- **Independent Physics**: Bird 1 (Gold) and Bird 2 (Blue) flap and fall with their own momentum.
+- **Victory System**: When one bird crashes, the survivor keeps flying to score more points. The winner is crowned with trophy flair and recorded in the SQLite database!
+
+| Player | Keyboard (Desktop / Web) | Mobile / Touchscreen (Web / Android) |
+|:---|:---|:---|
+| 🟡 **Player 1 (Gold Bird)** | <kbd>Space</kbd> or <kbd>W</kbd> | **Tap Left Half** of screen |
+| 🔵 **Player 2 (Blue Bird)** | <kbd>↑ Up Arrow</kbd> or <kbd>K</kbd> | **Tap Right Half** of screen |
+
+### 🕹️ General & Hotkey Reference
 
 | Key / Input | Context | Action |
 |:---:|:---:|:---|
-| <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | In-Game | **Flap wings** (upward velocity burst) |
-| <kbd>Space</kbd> / <kbd>↑</kbd> / <kbd>Left Click</kbd> | Start / Game Over | **Start / Replay game** |
+| <kbd>Space</kbd> / <kbd>W</kbd> / <kbd>Left Click</kbd> | Solo In-Game | **Flap wings** (upward velocity burst) |
+| <kbd>2</kbd> / <kbd>Tab</kbd> | Start / Game Over | **Toggle Solo ⇄ 2P Duel Mode** |
+| <kbd>Space</kbd> / <kbd>↑</kbd> | Game Over | **Quick Rematch / Start game** |
 | <kbd>F11</kbd> / <kbd>Alt</kbd>+<kbd>Enter</kbd> | Any screen | **Toggle Fullscreen Mode** (edge-to-edge monitor display) |
 | <kbd>X</kbd> | Any screen | **Toggle Screen Fit** (`Full Window` ➔ `Fit 4:7 Letterbox`) |
 | <kbd>Z</kbd> / <kbd>F10</kbd> | Windowed | **Cycle Window Size Presets** (`400×700` ➔ `480×840` ➔ `560×980` ➔ `640×1120`) |
@@ -406,38 +438,64 @@ The game is configured with `wrangler.toml` and a custom Cloudflare Worker (`wor
 
 ## 🏗️ Cross-Platform Compilation Guide
 
-### Windows
+### 🪟 Windows (Native Executable)
 ```bash
+cd flappy-bird-rust
 cargo build --release
 # Executable generated at: target/release/flappy-bird-rust.exe
 ```
 
-### macOS
+### 🐧 Linux (Ubuntu / Debian / Fedora / Arch)
+Run the automated build script which installs required ALSA, X11, and OpenGL headers:
 ```bash
-cargo build --release
-# Executable generated at: target/release/flappy-bird-rust
+# Automated one-step build:
+chmod +x build_linux.sh
+./build_linux.sh
+# Executable generated at root: ./flappy-bird-linux
 ```
-
-### Linux (Ubuntu / Debian)
-Install standard development and graphics libraries:
+Or manually install headers and compile:
 ```bash
 sudo apt-get update
-sudo apt-get install -y pkg-config libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev
+sudo apt-get install -y pkg-config libx11-dev libxi-dev libgl1-mesa-dev libasound2-dev libxcursor-dev libxrandr-dev libxinerama-dev
+cd flappy-bird-rust
 cargo build --release
 ```
 
-### WebAssembly (WASM Browser Build)
+### 🍎 macOS (Apple Silicon & Intel)
+Run the automated build script for macOS:
+```bash
+# Automated one-step build:
+chmod +x build_macos.sh
+./build_macos.sh
+# Executable generated at root: ./flappy-bird-macos
+```
+Or manually compile with Cargo:
+```bash
+cd flappy-bird-rust
+cargo build --release
+```
+
+### 🤖 Automated GitHub Actions CI/CD Releases
+Whenever a git tag (e.g. `v1.5.0`) is pushed to GitHub, our `.github/workflows/release.yml` matrix automatically builds:
+- `flappy-bird-windows-x64.exe` (Windows 64-bit)
+- `flappy-bird-linux-x64` (Linux 64-bit)
+- `flappy-bird-macos-arm64` (Apple Silicon M1/M2/M3/M4)
+- `flappy-bird-macos-x86_64` (macOS Intel)
+
+Binaries are automatically tested, packaged, and published as a direct one-click GitHub Release!
+
+### 🦀 WebAssembly (WASM Browser Build)
 Compile directly to WebAssembly for seamless in-browser play:
 ```bash
 # 1. Add WASM target
 rustup target add wasm32-unknown-unknown
 
 # 2. Build release binary
+cd flappy-bird-rust
 cargo build --release --target wasm32-unknown-unknown
 
-# 3. Serve via local HTTP server
-# (Using python, basic-http-server, or miniserve)
-python3 -m http.server 8080
+# 3. Copy to web assets
+cp target/wasm32-unknown-unknown/release/flappy-bird-rust.wasm ../web/wasm/flappy-bird-rust.wasm
 ```
 
 ---
