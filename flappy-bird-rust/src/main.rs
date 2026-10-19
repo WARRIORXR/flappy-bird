@@ -61,6 +61,27 @@ fn save_high_score(score: u32) {
     let _ = std::fs::write("highscore.txt", score.to_string());
 }
 
+#[allow(unused_variables)]
+fn save_score_history(score: u32, coins: u32, difficulty: Difficulty, skin: BirdSkin) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::io::Write;
+        let diff_str = difficulty.name();
+        let skin_str = skin.name();
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let entry = format!(
+            "{{\"score\":{},\"coins\":{},\"difficulty\":\"{}\",\"skin\":\"{}\",\"timestamp\":{}}}\n",
+            score, coins, diff_str, skin_str, timestamp
+        );
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("scores_history.jsonl") {
+            let _ = file.write_all(entry.as_bytes());
+        }
+    }
+}
+
 fn check_collision(bird: &Bird, pipes: &PipeManager) -> bool {
     let margin = 3.0;
     let bx = bird.x + margin;
@@ -251,9 +272,11 @@ async fn main() {
             }
         }
 
+        let has_touch = touches().iter().any(|t| t.phase == TouchPhase::Started);
         let tap = is_key_pressed(KeyCode::Space)
             || is_key_pressed(KeyCode::Up)
-            || is_mouse_button_pressed(MouseButton::Left);
+            || is_mouse_button_pressed(MouseButton::Left)
+            || has_touch;
 
         // ── State machine ───────────────────────────────────────────────
         match state {
@@ -448,6 +471,7 @@ async fn main() {
                                 save_high_score(best_score);
                             }
                             stats.record_game(score, coins_this_game);
+                            save_score_history(score, coins_this_game, difficulty, skin);
 
                             // Lifetime achievements
                             if stats.total_coins >= 50 {
@@ -476,9 +500,11 @@ async fn main() {
                 weather.update(dt);
                 particles.update(raw_dt);
                 achievements.update(raw_dt);
+                let has_touch = touches().iter().any(|t| t.phase == TouchPhase::Started);
                 if is_key_pressed(KeyCode::Space)
                     || is_key_pressed(KeyCode::R)
                     || is_mouse_button_pressed(MouseButton::Left)
+                    || has_touch
                 {
                     state = GameState::Playing;
                     score = 0;

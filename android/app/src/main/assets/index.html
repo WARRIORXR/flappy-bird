@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#4ec0ca">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Flappy Bird Pro: Procedural physics, weather simulator, powerups, and persistent SQLite database for web and Android.">
+  <title>Flappy Bird Pro — Web & Android</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Status & Navigation Bar -->
+    <header class="header-bar">
+      <div class="brand">
+        <span class="brand-icon">🐦</span>
+        <span>Flappy Bird</span>
+        <span class="brand-tag">PRO</span>
+      </div>
+
+      <div class="header-actions">
+        <!-- Database Live Status Indicator -->
+        <div id="dbStatusBadge" class="status-badge" title="Database Sync Status">
+          <span class="status-dot"></span>
+          <span id="dbStatusText">SQLite DB</span>
+        </div>
+
+        <!-- Leaderboard / Database Modal Button -->
+        <button id="btnLeaderboard" class="btn-icon" title="View High Scores & Match Database">🏆</button>
+
+        <!-- Toggle Mute Audio -->
+        <button id="btnMute" class="btn-icon" title="Toggle Sound">🔊</button>
+
+        <!-- Fullscreen Button -->
+        <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen">⛶</button>
+
+        <!-- Link to Rust WASM Engine -->
+        <a href="wasm/index.html" class="btn-icon" title="Play Rust WASM Engine" style="text-decoration:none; color:inherit;">🦀</a>
+      </div>
+    </header>
+
+    <!-- Main Game Viewport -->
+    <main class="game-viewport">
+      <div class="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+      </div>
+    </main>
+
+    <!-- Mobile Touch Control Toolbar -->
+    <nav class="mobile-controls-bar">
+      <button id="btnSkin" class="ctrl-btn" title="Change Bird Skin">
+        <span class="icon">🎨</span>
+        <span>Skin</span>
+      </button>
+
+      <button id="btnDiff" class="ctrl-btn" title="Change Difficulty">
+        <span class="icon">🎮</span>
+        <span>Diff</span>
+      </button>
+
+      <button id="btnWeather" class="ctrl-btn" title="Change Weather Effect">
+        <span class="icon">🌧️</span>
+        <span>Weather</span>
+      </button>
+
+      <button id="btnDatabaseBar" class="ctrl-btn" title="Score History & Leaderboard">
+        <span class="icon">📊</span>
+        <span>Scores</span>
+      </button>
+
+      <button id="btnPause" class="ctrl-btn" title="Pause Game">
+        <span class="icon">⏸️</span>
+        <span>Pause</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Android PWA Install Banner -->
+  <div id="installBanner" class="install-banner">
+    <span>📱 Install App on Android</span>
+  </div>
+
+  <!-- Database & Leaderboard Modal -->
+  <div id="dbModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🏆</span>
+          <span>Flappy Score Database</span>
+        </div>
+        <button id="modalCloseBtn" class="modal-close">&times;</button>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="modal-tabs">
+        <button class="tab-btn active" data-tab="leaderboard">High Scores</button>
+        <button class="tab-btn" data-tab="history">Match History</button>
+        <button class="tab-btn" data-tab="stats">Statistics</button>
+        <button class="tab-btn" data-tab="settings">Player & Sync</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- ─── Tab 1: Leaderboard ─── -->
+        <div id="tab-leaderboard" class="tab-content active">
+          <div class="filter-bar">
+            <button class="filter-chip active" data-filter="all">All</button>
+            <button class="filter-chip" data-filter="Normal">Normal</button>
+            <button class="filter-chip" data-filter="Hard">Hard</button>
+            <button class="filter-chip" data-filter="Easy">Easy</button>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:30px">#</th>
+                  <th>Player</th>
+                  <th>Score</th>
+                  <th>Coins</th>
+                  <th>Diff</th>
+                  <th>Medal</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardTbody">
+                <tr><td colspan="6" style="text-align:center; padding:20px; color:#aaa;">Loading scores...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ─── Tab 2: Match History ─── -->
+        <div id="tab-history" class="tab-content">
+          <div style="overflow-x:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Score</th>
+                  <th>Coins</th>
+                  <th>Combo</th>
+                  <th>Skin</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="historyTbody">
+                <tr><td colspan="6" style="text-align:center; padding:20px; color:#aaa;">Loading match history...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ─── Tab 3: Lifetime Statistics ─── -->
+        <div id="tab-stats" class="tab-content">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">All-Time High Score</span>
+              <span id="statHighScore" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Total Games Played</span>
+              <span id="statTotalGames" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Total Coins Collected</span>
+              <span id="statTotalCoins" class="stat-val">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Average Score</span>
+              <span id="statAvgScore" class="stat-val">0</span>
+            </div>
+          </div>
+          <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px;">
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px; font-weight:700;">Top Registered Champion</div>
+            <div id="statTopPlayer" style="font-size:16px; font-weight:800; color:var(--accent-cyan);">None</div>
+          </div>
+        </div>
+
+        <!-- ─── Tab 4: Player Settings & DB Backup ─── -->
+        <div id="tab-settings" class="tab-content">
+          <div class="settings-form">
+            <div class="form-group">
+              <label for="playerNameInput">Gamer Tag / Player Name</label>
+              <input type="text" id="playerNameInput" class="form-input" maxlength="25" placeholder="Enter your name...">
+            </div>
+
+            <button id="btnSaveName" class="btn-primary">Save Gamer Tag</button>
+
+            <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-color);">
+              <label style="font-size:12px; font-weight:700; color:var(--text-dim); display:block; margin-bottom:8px;">Database Maintenance</label>
+              <div class="action-row">
+                <button id="btnExportDb" class="btn-secondary">📥 Export Database (.json)</button>
+                <button id="btnResetDb" class="btn-danger">⚠️ Reset Scores</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/database.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+
+  <script>
+    // ─── UI Interactivity & Modal Controller ─────────────────────────────────
+    const modal = document.getElementById('dbModal');
+    const btnLeaderboard = document.getElementById('btnLeaderboard');
+    const btnDatabaseBar = document.getElementById('btnDatabaseBar');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const btnMute = document.getElementById('btnMute');
+    const btnFullscreen = document.getElementById('btnFullscreen');
+    const dbStatusBadge = document.getElementById('dbStatusBadge');
+    const dbStatusText = document.getElementById('dbStatusText');
+
+    let currentFilter = 'all';
+
+    function openModal() {
+      modal.classList.add('active');
+      refreshLeaderboard();
+      refreshHistory();
+      refreshStats();
+      document.getElementById('playerNameInput').value = window.scoreDB.getPlayerName();
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+    }
+
+    window.openLeaderboardModal = openModal;
+    btnLeaderboard.addEventListener('click', openModal);
+    btnDatabaseBar.addEventListener('click', openModal);
+    modalCloseBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        const targetTab = btn.getAttribute('data-tab');
+        document.getElementById(`tab-${targetTab}`).classList.add('active');
+
+        if (targetTab === 'leaderboard') refreshLeaderboard();
+        if (targetTab === 'history') refreshHistory();
+        if (targetTab === 'stats') refreshStats();
+      });
+    });
+
+    // Difficulty filter chips
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.getAttribute('data-filter');
+        refreshLeaderboard();
+      });
+    });
+
+    // Render Leaderboard
+    async function refreshLeaderboard() {
+      const tbody = document.getElementById('leaderboardTbody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:15px; color:#aaa;">Loading scores...</td></tr>';
+
+      const scores = await window.scoreDB.getLeaderboard(currentFilter, 25);
+      if (scores.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#aaa;">No scores recorded yet! Play a round to make history!</td></tr>';
+        return;
+      }
+
+      let html = '';
+      scores.forEach((s, idx) => {
+        let rankDisplay = `#${s.rank || idx + 1}`;
+        if (s.rank === 1) rankDisplay = '<span class="rank-pill rank-gold">🥇</span>';
+        else if (s.rank === 2) rankDisplay = '<span class="rank-pill rank-silver">🥈</span>';
+        else if (s.rank === 3) rankDisplay = '<span class="rank-pill rank-bronze">🥉</span>';
+
+        const diffClass = `badge-${(s.difficulty || 'normal').toLowerCase()}`;
+        const medalEmoji = s.medal === 'Platinum' ? '💎' : s.medal === 'Gold' ? '🥇' : s.medal === 'Silver' ? '🥈' : s.medal === 'Bronze' ? '🥉' : '—';
+
+        html += `
+          <tr>
+            <td>${rankDisplay}</td>
+            <td style="font-weight:700; color:#fff;">${escapeHtml(s.playerName || 'Player')}</td>
+            <td style="font-weight:800; font-size:14px; color:#FFD700;">${s.score}</td>
+            <td>🪙 ${s.coins || 0}</td>
+            <td><span class="badge-diff ${diffClass}">${s.difficulty}</span></td>
+            <td>${medalEmoji}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Render History
+    async function refreshHistory() {
+      const tbody = document.getElementById('historyTbody');
+      const recent = await window.scoreDB.getRecentGames(15);
+      if (recent.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#aaa;">No matches played yet.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      recent.forEach(r => {
+        const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now';
+        html += `
+          <tr>
+            <td style="font-weight:700;">${escapeHtml(r.playerName || 'Player')}</td>
+            <td style="font-weight:800; color:#FFD700;">${r.score}</td>
+            <td>🪙 ${r.coins || 0}</td>
+            <td>${r.combo ? `🔥 ${r.combo}x` : '—'}</td>
+            <td>${r.skin || 'Classic'}</td>
+            <td style="color:#aaa; font-size:10px;">${dateStr}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Render Stats
+    async function refreshStats() {
+      const stats = await window.scoreDB.getStats();
+      document.getElementById('statHighScore').textContent = stats.highScore || 0;
+      document.getElementById('statTotalGames').textContent = stats.totalGames || 0;
+      document.getElementById('statTotalCoins').textContent = stats.totalCoins || 0;
+      document.getElementById('statAvgScore').textContent = stats.avgScore || 0;
+      document.getElementById('statTopPlayer').textContent = stats.topPlayer ? `${stats.topPlayer} (${stats.topPlayerScore || stats.highScore || 0} pts)` : 'None';
+    }
+
+    window.refreshLeaderboardView = () => {
+      if (modal.classList.contains('active')) {
+        refreshLeaderboard();
+        refreshHistory();
+        refreshStats();
+      }
+    };
+
+    // Save Player Name
+    document.getElementById('btnSaveName').addEventListener('click', () => {
+      const input = document.getElementById('playerNameInput');
+      const newName = window.scoreDB.setPlayerName(input.value);
+      input.value = newName;
+      alert(`Gamer Tag updated to: ${newName}`);
+    });
+
+    // Export Database
+    document.getElementById('btnExportDb').addEventListener('click', () => {
+      window.scoreDB.exportAll();
+    });
+
+    // Reset Database
+    document.getElementById('btnResetDb').addEventListener('click', async () => {
+      if (confirm('Are you sure you want to reset all score data in the database?')) {
+        await window.scoreDB.resetDatabase();
+        refreshLeaderboard();
+        refreshHistory();
+        refreshStats();
+        alert('Database has been reset.');
+      }
+    });
+
+    // Audio Mute Button
+    function updateMuteButton() {
+      btnMute.textContent = window.soundEngine.muted ? '🔇' : '🔊';
+    }
+    btnMute.addEventListener('click', () => {
+      window.soundEngine.toggleMute();
+      updateMuteButton();
+    });
+
+    // Fullscreen Button
+    btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Mobile Controls
+    document.getElementById('btnSkin').addEventListener('click', () => window.flappyGame.cycleSkin());
+    document.getElementById('btnDiff').addEventListener('click', () => window.flappyGame.cycleDifficulty());
+    document.getElementById('btnWeather').addEventListener('click', () => window.flappyGame.cycleWeather());
+    document.getElementById('btnPause').addEventListener('click', () => {
+      window.flappyGame.togglePause();
+      document.getElementById('btnPause').querySelector('span:last-child').textContent = window.flappyGame.isPaused() ? 'Resume' : 'Pause';
+    });
+
+    // Database Status Observer
+    window.scoreDB.onStatusChange(({ online }) => {
+      if (online) {
+        dbStatusBadge.classList.remove('offline');
+        dbStatusText.textContent = 'SQLite Live';
+      } else {
+        dbStatusBadge.classList.add('offline');
+        dbStatusText.textContent = 'Offline DB';
+      }
+    });
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          console.log('[PWA] Service Worker registered with scope:', reg.scope);
+        }).catch(err => {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+      });
+    }
+
+    // Android PWA Install Prompt Handler
+    let deferredPrompt;
+    const installBanner = document.getElementById('installBanner');
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBanner.style.display = 'flex';
+    });
+
+    installBanner.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        installBanner.style.display = 'none';
+      }
+      deferredPrompt = null;
+    });
+
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

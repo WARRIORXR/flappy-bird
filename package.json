@@ -1,0 +1,22 @@
+{
+  "name": "flappy-bird-pro",
+  "version": "1.4.0",
+  "description": "Flappy Bird - Rust, Web, Android & Persistent SQLite Database",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "build:wasm": "cd flappy-bird-rust && cargo build --target wasm32-unknown-unknown --release && copy target\\wasm32-unknown-unknown\\release\\flappy-bird-rust.wasm ..\\web\\wasm\\flappy-bird-rust.wasm"
+  },
+  "keywords": [
+    "flappy-bird",
+    "rust",
+    "wasm",
+    "android",
+    "pwa",
+    "sqlite",
+    "game"
+  ],
+  "author": "",
+  "license": "MIT"
+}

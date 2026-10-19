@@ -8,7 +8,8 @@
 [![Macroquad](https://img.shields.io/badge/Framework-Macroquad%200.4-2575fc.svg?style=for-the-badge)](https://macroquad.rs/)
 [![Latest Release](https://img.shields.io/github/v/release/WARRIORXR/flappy-bird?style=for-the-badge&logo=github&color=007ec6)](https://github.com/WARRIORXR/flappy-bird/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20WASM-34a853.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Web%20%7C%20Android%20%7C%20macOS%20%7C%20Linux-34a853.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird)
+[![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20IndexedDB-003B57.svg?style=for-the-badge&logo=sqlite)](https://github.com/WARRIORXR/flappy-bird)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/WARRIORXR/flappy-bird/pulls)
 
 <p align="center">
@@ -306,15 +307,53 @@ flappy-bird-rust/
 
 ---
 
-## 💾 Save Data & Persistence
+## 💾 Save Data & Persistent SQLite Database
 
-All game records are stored locally in the working directory as simple plain-text files:
+Flappy Bird features a **dual-tier persistent database architecture**:
 
-| File | Content | Format |
-|:---|:---|:---|
-| `highscore.txt` | Highest score ever achieved | Plain integer (e.g., `42`) |
-| `stats.txt` | Lifetime game metrics | Key-value pairs (`games=`, `total_score=`, `total_coins=`) |
-| `achievements.txt` | Unlocked achievement identifiers | Newline-delimited list of unlocked achievement names |
+1. **Desktop Native (Rust)**:
+   - High scores: `highscore.txt`
+   - Lifetime statistics: `stats.txt`
+   - Achievements: `achievements.txt`
+   - Detailed match audit logs: `scores_history.jsonl`
+
+2. **Web & Mobile (Server + Offline Client)**:
+   - **Backend SQLite Database (`data/flappy_scores.db`)**: Powered by Node's native `node:sqlite`. Stores full player profiles, match scores, coin records, medals, combo streaks, and close shaves.
+   - **REST API Endpoints**:
+     - `GET /api/scores`: Authoritative leaderboard with filters (`?difficulty=all|easy|normal|hard&sort=highest|recent`).
+     - `POST /api/scores`: Atomic score submission with player ranking.
+     - `GET /api/stats`: Global gameplay analytics.
+     - `GET /api/export`: Complete JSON database export.
+   - **Offline-First Client (IndexedDB)**: Games played offline on mobile or without a network connection are saved to IndexedDB (`FlappyScoresDB`) and automatically synced to SQLite when the server is reached.
+   - **In-Game Leaderboard GUI**: Press <kbd>L</kbd> or tap the 🏆 button to inspect the High Scores Leaderboard, recent Match History, and Lifetime Analytics directly inside the game!
+
+---
+
+## 🌐 Web & 📱 Android Playable Guide
+
+### 🚀 Launch the Web & Database Server
+```bash
+# Start the server (serves on http://localhost:3030)
+npm start
+# or
+node server/server.js
+```
+The terminal displays your local network address (e.g. `http://192.168.x.x:3030`).
+
+### 📱 Android Play & PWA Installation
+- Open the server URL in **Chrome** on any Android phone or tablet.
+- Tap **"📱 Install App on Android"** (or Chrome menu `⋮` ➔ **"Install App"**).
+- Enjoy locked portrait orientation, full-screen immersive display, haptic vibration feedback, and **100% offline play** powered by Service Worker.
+
+### 📦 Native Android Studio APK Project
+A full Android Studio project is located in `android/`:
+- Open `android/` in **Android Studio**.
+- Click **Build > Build Bundle(s) / APK(s) > Build APK(s)** to generate `app-debug.apk`.
+- Or build via command line:
+  ```bash
+  cd android
+  ./gradlew assembleDebug
+  ```
 
 ---
 

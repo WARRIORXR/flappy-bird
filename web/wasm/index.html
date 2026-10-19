@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Flappy Bird — Rust WASM Edition</title>
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #12131C;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #top-nav {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+    }
+    .nav-btn {
+      background: rgba(30, 34, 53, 0.85);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      border: 1px solid #333a56;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #FFD700;
+      font-size: 20px;
+      font-weight: bold;
+      z-index: 500;
+      text-align: center;
+      transition: opacity 0.5s;
+    }
+    canvas#glcanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="top-nav">
+    <a href="../index.html" class="nav-btn">← Back to Web App</a>
+  </div>
+
+  <div id="loading">
+    🦀 Compiling Rust & Loading WebAssembly...<br>
+    <span style="font-size:13px; color:#aaa; font-weight:normal;">Rendering procedural audio & vector graphics</span>
+  </div>
+
+  <canvas id="glcanvas" tabindex='1'></canvas>
+
+  <script src="mq_js_bundle.js"></script>
+  <script>
+    load("flappy-bird-rust.wasm");
+    setTimeout(() => {
+      const loader = document.getElementById('loading');
+      if (loader) loader.style.opacity = '0';
+    }, 1200);
+  </script>
+</body>
+</html>

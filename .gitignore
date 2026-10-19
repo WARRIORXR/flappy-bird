@@ -2,7 +2,19 @@
 **/target/
 Cargo.lock
 
-# Save files
+# Save files & local logs
 highscore.txt
 stats.txt
 achievements.txt
+scores_history.jsonl
+*.log
+
+# Node & Gradle caches
+node_modules/
+.gradle/
+build/
+android/.gradle/
+android/app/build/
+android/.idea/
+android/*.iml
+android/app/*.iml
