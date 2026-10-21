@@ -653,6 +653,8 @@ pub fn draw_hud_2p(
     skin2: BirdSkin,
     coins: u32,
     muted: bool,
+    wins1: u32,
+    wins2: u32,
 ) {
     let (col1, _, _, _) = skin1.colors();
     let (col2, _, _, _) = skin2.colors();
@@ -665,10 +667,13 @@ pub fn draw_hud_2p(
     let s1_str = score1.to_string();
     draw_text(&s1_str, 20.0, 56.0, 24.0, WHITE);
 
-    // VS in center
+    // VS & Series Tally in center
     let vs = "VS";
-    let vs_dim = measure_text(vs, None, 22, 1.0);
-    draw_text(vs, (GAME_WIDTH - vs_dim.width) / 2.0, 46.0, 22.0, Color::from_rgba(255, 215, 0, 230));
+    let vs_dim = measure_text(vs, None, 20, 1.0);
+    draw_text(vs, (GAME_WIDTH - vs_dim.width) / 2.0, 42.0, 20.0, Color::from_rgba(255, 215, 0, 230));
+    let series_str = format!("P1 [{}]-[{}] P2", wins1, wins2);
+    let ser_dim = measure_text(&series_str, None, 11, 1.0);
+    draw_text(&series_str, (GAME_WIDTH - ser_dim.width) / 2.0, 58.0, 11.0, Color::from_rgba(255, 240, 120, 230));
 
     // P2 Badge (Top-Right)
     let p2_w = 115.0;
@@ -696,6 +701,8 @@ pub fn draw_game_over_2p(
     skin1: BirdSkin,
     skin2: BirdSkin,
     coins_collected: u32,
+    wins1: u32,
+    wins2: u32,
 ) {
     // Dark veil
     draw_rectangle(0.0, 0.0, GAME_WIDTH, GAME_HEIGHT, Color::from_rgba(0, 0, 0, 130));
@@ -753,10 +760,10 @@ pub fn draw_game_over_2p(
     draw_line(px + 15.0, py + 150.0, px + pw - 15.0, py + 150.0, 1.0, Color::from_rgba(180, 150, 100, 255));
     let coins_str = format!("Coins Collected: {}", coins_collected);
     let c_dim = measure_text(&coins_str, None, 14, 1.0);
-    draw_text(&coins_str, (GAME_WIDTH - c_dim.width) / 2.0, py + 175.0, 14.0, Color::from_rgba(139, 100, 30, 255));
-    let diff_info = "P1: Space/W | P2: Up/K";
-    let di_dim = measure_text(diff_info, None, 12, 1.0);
-    draw_text(diff_info, (GAME_WIDTH - di_dim.width) / 2.0, py + 195.0, 12.0, Color::from_rgba(100, 100, 100, 220));
+    draw_text(&coins_str, (GAME_WIDTH - c_dim.width) / 2.0, py + 172.0, 14.0, Color::from_rgba(139, 100, 30, 255));
+    let diff_info = format!("SERIES TOTAL: P1 [{}] - [{}] P2", wins1, wins2);
+    let di_dim = measure_text(&diff_info, None, 12, 1.0);
+    draw_text(&diff_info, (GAME_WIDTH - di_dim.width) / 2.0, py + 194.0, 12.0, Color::from_rgba(110, 80, 50, 255));
 
     // Restart button
     let bx = GAME_WIDTH / 2.0 - 80.0;

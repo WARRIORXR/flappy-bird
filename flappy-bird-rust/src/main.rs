@@ -173,6 +173,8 @@ async fn main() {
     let mut score2 = 0u32;
     let mut alive1 = true;
     let mut alive2 = true;
+    let mut duel_wins_1 = 0u32;
+    let mut duel_wins_2 = 0u32;
 
     let mut difficulty = Difficulty::Normal;
     let mut pipes = PipeManager::new(difficulty.pipe_gap(), difficulty.speed_mult());
@@ -375,7 +377,7 @@ async fn main() {
 
                     if p2_flap && game_mode == GameMode::TwoPlayer && alive2 {
                         bird2.flap();
-                        audio.play_flap();
+                        audio.play_flap_2();
                     }
 
                     // Calculate score multiplier based on active power-ups and difficulty
@@ -547,6 +549,11 @@ async fn main() {
                             state = GameState::Dying;
                             screen_shake = 14.0;
                             combo = 0;
+                            if score1 > score2 {
+                                duel_wins_1 += 1;
+                            } else if score2 > score1 {
+                                duel_wins_2 += 1;
+                            }
                             if score > best_score {
                                 best_score = score;
                                 save_high_score(best_score);
@@ -767,7 +774,7 @@ async fn main() {
             GameState::Playing => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
                 if game_mode == GameMode::TwoPlayer {
-                    draw_hud_2p(score1, score2, alive1, alive2, skin, skin2, coins_this_game, audio.muted);
+                    draw_hud_2p(score1, score2, alive1, alive2, skin, skin2, coins_this_game, audio.muted, duel_wins_1, duel_wins_2);
                 } else {
                     draw_hud(score, coins_this_game, fps, combo, audio.muted, &powerups);
                 }
@@ -794,7 +801,7 @@ async fn main() {
             GameState::Dying => {
                 let fps = if show_fps { Some(get_fps()) } else { None };
                 if game_mode == GameMode::TwoPlayer {
-                    draw_hud_2p(score1, score2, alive1, alive2, skin, skin2, coins_this_game, audio.muted);
+                    draw_hud_2p(score1, score2, alive1, alive2, skin, skin2, coins_this_game, audio.muted, duel_wins_1, duel_wins_2);
                 } else {
                     draw_hud(score, coins_this_game, fps, 0, audio.muted, &powerups);
                 }
@@ -802,7 +809,7 @@ async fn main() {
             }
             GameState::GameOver => {
                 if game_mode == GameMode::TwoPlayer {
-                    draw_game_over_2p(score1, score2, skin, skin2, coins_this_game);
+                    draw_game_over_2p(score1, score2, skin, skin2, coins_this_game, duel_wins_1, duel_wins_2);
                 } else {
                     draw_game_over(score, best_score, coins_this_game);
                     achievements.draw_summary();

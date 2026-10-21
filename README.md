@@ -103,7 +103,7 @@
 
 | Platform | Target Architecture | Download Link | Build Type |
 |:---|:---|:---:|:---:|
-| 🪟 **Windows** | x86_64 (`.exe`) | [📥 **flappy-bird-rust.exe (v1.5.0)**](flappy-bird-rust.exe) | Standalone Native Binary (~834 KB) |
+| 🪟 **Windows** | x86_64 (`.exe`) | [📥 **flappy-bird-rust.exe (v1.6.0)**](flappy-bird-rust.exe) | Standalone Native Binary (~834 KB) |
 | 🐧 **Linux** | x86_64 (`glibc / alsa`) | [📥 **flappy-bird-linux**](https://github.com/WARRIORXR/flappy-bird/releases/latest) | Standalone Native Binary |
 | 🍎 **macOS** | Apple Silicon (`M1/M2/M3/M4`) | [📥 **flappy-bird-macos-arm64**](https://github.com/WARRIORXR/flappy-bird/releases/latest) | Standalone Native Binary |
 | 🍏 **macOS** | Intel (`x86_64`) | [📥 **flappy-bird-macos-x64**](https://github.com/WARRIORXR/flappy-bird/releases/latest) | Standalone Native Binary |
@@ -156,16 +156,17 @@ cargo run --release
 
 ## 🎮 Controls & Two-Player Duel Mode
 
-### ⚔️ Local Two-Player Battle / Duel
+### ⚔️ Local Two-Player Battle / Duel & Match Series
 Challenge a friend on the same keyboard, touchscreen, or mobile device!
 - **Mode Toggle**: Press <kbd>2</kbd> or <kbd>Tab</kbd> on desktop, or tap `[ ⚔️ 2P Duel ]` in the clean top header.
-- **Independent Physics**: Bird 1 (Gold) and Bird 2 (Blue) flap and fall with their own momentum.
+- **Independent Physics & Audio**: Bird 1 (Gold, 420Hz chirp) and Bird 2 (Blue, 320Hz tone) flap and fall with their own momentum and distinct audio cues.
+- **Match Series Standing**: Tracks running match wins across rematches (`⚔️ SERIES: P1 [2] - [1] P2`) on the live HUD and Game Over summary.
 - **Victory System**: When one bird crashes, the survivor keeps flying to score more points. The winner is crowned with trophy flair and recorded in the SQLite database!
 
-| Player | Keyboard (Desktop / Web) | Mobile / Touchscreen (Web / Android) |
-|:---|:---|:---|
-| 🟡 **Player 1 (Gold Bird)** | <kbd>Space</kbd> or <kbd>W</kbd> | **Tap Left Half** of screen |
-| 🔵 **Player 2 (Blue Bird)** | <kbd>↑ Up Arrow</kbd> or <kbd>K</kbd> | **Tap Right Half** of screen |
+| Player | Keyboard (Desktop / Web) | Mobile / Touchscreen (Web / Android) | Flap Tone |
+|:---|:---|:---|:---:|
+| 🟡 **Player 1 (Gold Bird)** | <kbd>Space</kbd> or <kbd>W</kbd> | **Tap Left Half** of screen | 420 Hz Harmonic Chirp |
+| 🔵 **Player 2 (Blue Bird)** | <kbd>↑ Up Arrow</kbd> or <kbd>K</kbd> | **Tap Right Half** of screen | 320 Hz Warm Tone |
 
 ### 🕹️ General & Hotkey Reference
 
@@ -173,7 +174,7 @@ Challenge a friend on the same keyboard, touchscreen, or mobile device!
 |:---:|:---:|:---|
 | <kbd>Space</kbd> / <kbd>W</kbd> / <kbd>Left Click</kbd> | Solo In-Game | **Flap wings** (upward velocity burst) |
 | <kbd>2</kbd> / <kbd>Tab</kbd> | Start / Game Over | **Toggle Solo ⇄ 2P Duel Mode** |
-| <kbd>Space</kbd> / <kbd>↑</kbd> | Game Over | **Quick Rematch / Start game** |
+| <kbd>Space</kbd> / <kbd>R</kbd> / <kbd>↑</kbd> | Game Over | **Instant Quick Rematch / Restart** |
 | <kbd>F11</kbd> / <kbd>Alt</kbd>+<kbd>Enter</kbd> | Any screen | **Toggle Fullscreen Mode** (edge-to-edge monitor display) |
 | <kbd>X</kbd> | Any screen | **Toggle Screen Fit** (`Full Window` ➔ `Fit 4:7 Letterbox`) |
 | <kbd>Z</kbd> / <kbd>F10</kbd> | Windowed | **Cycle Window Size Presets** (`400×700` ➔ `480×840` ➔ `560×980` ➔ `640×1120`) |

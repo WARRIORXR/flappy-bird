@@ -72,6 +72,9 @@
   let bestScore = parseInt(localStorage.getItem('flappy_best_score') || '0', 10);
   let isPaused = false;
   let lastScoreRecord = null;
+  let duelWins1 = 0;
+  let duelWins2 = 0;
+  let hasAnnouncedRecord = false;
 
   // ─── Camera Shake & Speed Lines ─────────────────────────────────────────────
   let screenShake = 0;
@@ -111,7 +114,7 @@
   let stars = [];
 
   // ─── Bird Entity Factory ────────────────────────────────────────────────────
-  function createBird(startX, defaultSkinIdx, label) {
+  function createBird(startX, defaultSkinIdx, label, isP2) {
     return {
       x: startX,
       startX: startX,
@@ -124,6 +127,7 @@
       tumbleSpeed: 0,
       skinIndex: defaultSkinIdx,
       label: label,
+      isP2: !!isP2,
 
       reset(startX) {
         if (startX !== undefined) this.startX = startX;
@@ -140,7 +144,11 @@
         if (!this.alive) return;
         this.velY = -320;
         this.wingAngle = -0.5;
-        window.soundEngine.playFlap();
+        if (this.isP2) {
+          window.soundEngine.playFlapP2();
+        } else {
+          window.soundEngine.playFlapP1();
+        }
 
         if (navigator.vibrate) {
           navigator.vibrate(15);
@@ -307,8 +315,8 @@
     };
   }
 
-  const bird1 = createBird(80, 0, 'P1');
-  const bird2 = createBird(110, 1, 'P2');
+  const bird1 = createBird(80, 0, 'P1', false);
+  const bird2 = createBird(110, 1, 'P2', true);
   const bird = bird1; // alias for solo compatibility
 
   // ─── Power-Up System ────────────────────────────────────────────────────────
@@ -496,6 +504,24 @@
             }
 
             score += points;
+
+            if (score > bestScore && bestScore > 0 && !hasAnnouncedRecord) {
+              hasAnnouncedRecord = true;
+              addPopup(GAME_WIDTH / 2, 210, '🏆 NEW RECORD!', '#FFD700');
+              window.soundEngine.playGolden();
+              screenShake = 6;
+              for (let k = 0; k < 18; k++) {
+                spawnParticle(
+                  bird1.x,
+                  bird1.y,
+                  (Math.random() - 0.5) * 140,
+                  (Math.random() - 0.5) * 140,
+                  0.7,
+                  k % 2 === 0 ? '#FFD700' : '#00E5FF',
+                  3.5
+                );
+              }
+            }
 
             if (combo >= 5 && combo % 5 === 0) {
               addPopup(GAME_WIDTH / 2, 180, `🔥 ${combo}X COMBO!`, '#FF9800');
@@ -1096,6 +1122,9 @@
       bird1.alive = false;
       bird1.velY = -240;
       bird1.tumbleSpeed = 16;
+    } else if (currentMode === MODE.DUEL) {
+      if (score1 > score2) duelWins1++;
+      else if (score2 > score1) duelWins2++;
     }
     screenShake = 12;
     gameDuration = Math.round((Date.now() - gameStartTime) / 1000);
@@ -1226,6 +1255,11 @@
       ctx.fillStyle = '#FFE066';
       ctx.fillText('VS', GAME_WIDTH / 2, 48);
 
+      // Series Tally
+      ctx.font = 'bold 11px Arial';
+      ctx.fillStyle = '#FFE066';
+      ctx.fillText(`P1 [${duelWins1}] - [${duelWins2}] P2`, GAME_WIDTH / 2, 68);
+
       // Player 2 Card (Top Right)
       ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       roundRect(ctx, GAME_WIDTH - 125, 14, 110, 52, 10, true);
@@ -1247,7 +1281,7 @@
       ctx.textAlign = 'center';
       ctx.font = 'bold 14px Arial';
       ctx.fillStyle = '#FFD700';
-      ctx.fillText(`🪙 ${coins}`, GAME_WIDTH / 2, 75);
+      ctx.fillText(`🪙 ${coins}`, GAME_WIDTH / 2, 85);
     } else {
       // Solo HUD
       ctx.textAlign = 'center';
@@ -1262,6 +1296,14 @@
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#FFD700';
       ctx.fillText(`🪙 ${coins}`, 20, 35);
+
+      // High Score Target
+      if (bestScore > 0) {
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 13px Arial';
+        ctx.fillStyle = score > bestScore ? '#00E5FF' : 'rgba(255, 255, 255, 0.75)';
+        ctx.fillText(`🏆 BEST: ${bestScore}`, GAME_WIDTH - 20, combo >= 3 ? 55 : 35);
+      }
 
       // Combo Streak
       if (combo >= 3) {
@@ -1359,25 +1401,30 @@
         ctx.fillText('★ WINNER ★', px + pw - 80, py + 108);
       }
 
+      // Series total
+      ctx.font = 'bold 13px Arial';
+      ctx.fillStyle = '#8B4513';
+      ctx.fillText(`⚔️ SERIES STANDING: P1 [${duelWins1}] - [${duelWins2}] P2`, GAME_WIDTH / 2, py + 140);
+
       // Bottom info
       ctx.font = '13px Arial';
       ctx.fillStyle = '#555555';
-      ctx.fillText(`🪙 Coins: ${coins}  |  Difficulty: ${DIFFICULTIES[currentDiffIndex].name}`, GAME_WIDTH / 2, py + 155);
+      ctx.fillText(`🪙 Coins: ${coins}  |  Difficulty: ${DIFFICULTIES[currentDiffIndex].name}`, GAME_WIDTH / 2, py + 162);
 
       // Database status
       ctx.font = 'bold 12px Arial';
       if (lastScoreRecord && lastScoreRecord.synced) {
         ctx.fillStyle = '#2E7D32';
-        ctx.fillText(`✅ Duel Result Recorded in SQLite Database`, GAME_WIDTH / 2, py + 185);
+        ctx.fillText(`✅ Duel Result Recorded in SQLite Database`, GAME_WIDTH / 2, py + 188);
       } else {
         ctx.fillStyle = '#F57F17';
-        ctx.fillText(`💾 Duel Result Saved Locally`, GAME_WIDTH / 2, py + 185);
+        ctx.fillText(`💾 Duel Result Saved Locally`, GAME_WIDTH / 2, py + 188);
       }
 
       // Rematch prompt
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText('TAP OR PRESS SPACE FOR REMATCH', GAME_WIDTH / 2, 460);
+      ctx.fillText('TAP OR PRESS SPACE / R FOR REMATCH', GAME_WIDTH / 2, 460);
       ctx.font = '13px Arial';
       ctx.fillStyle = '#FFE066';
       ctx.fillText('Press [2] to switch to Solo Mode', GAME_WIDTH / 2, 490);
@@ -1456,7 +1503,7 @@
       // Restart prompt
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillText('TAP OR PRESS SPACE TO RESTART', GAME_WIDTH / 2, 465);
+      ctx.fillText('TAP OR PRESS SPACE / R TO RESTART', GAME_WIDTH / 2, 465);
 
       ctx.font = '13px Arial';
       ctx.fillStyle = '#FFE066';
@@ -1564,6 +1611,7 @@
     closeShaves = 0;
     gameStartTime = Date.now();
     lastScoreRecord = null;
+    hasAnnouncedRecord = false;
 
     resetGameForMode();
     pipes.reset();
@@ -1608,6 +1656,9 @@
       updateMuteButton();
     } else if (e.code === 'KeyP' && currentState === STATE.PLAYING) {
       isPaused = !isPaused;
+    } else if (e.code === 'KeyR' && (currentState === STATE.GAMEOVER || currentState === STATE.DYING)) {
+      e.preventDefault();
+      startNewGame();
     } else if (e.code === 'KeyL') {
       if (typeof window.openLeaderboardModal === 'function') {
         window.openLeaderboardModal();

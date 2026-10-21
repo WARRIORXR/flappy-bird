@@ -36,6 +36,10 @@ class SoundEngine {
   }
 
   playFlap() {
+    this.playFlapP1();
+  }
+
+  playFlapP1() {
     if (this.muted) return;
     this.ensureContext();
     if (!this.ctx) return;
@@ -45,8 +49,31 @@ class SoundEngine {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.setValueAtTime(420, now);
     osc.frequency.exponentialRampToValueAtTime(2400, now + 0.12);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.linearRampToValueAtTime(0.001, now + 0.14);
+
+    osc.connect(gain);
+    gain.connect(this.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
+  playFlapP2() {
+    if (this.muted) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(1850, now + 0.12);
 
     gain.gain.setValueAtTime(0.18, now);
     gain.gain.linearRampToValueAtTime(0.001, now + 0.14);

@@ -41,6 +41,7 @@ pub struct AudioManager {
     #[allow(dead_code)]
     pub close_shave_sound: Option<Sound>,
     pub flap_wav: &'static [u8],
+    pub flap2_wav: &'static [u8],
     pub score_wav: &'static [u8],
     pub hit_wav: &'static [u8],
     pub powerup_wav: &'static [u8],
@@ -90,6 +91,18 @@ impl AudioManager {
         }
         let flap_bytes = create_wav(sr, &flap_samples);
         let flap_sound = load_sound_from_bytes(&flap_bytes).await.ok();
+
+        // Flap tone 2: distinct warmer, lower pitch for Player 2
+        let flap2_len = (sr as f32 * 0.1) as usize;
+        let mut flap2_samples = Vec::with_capacity(flap2_len);
+        for i in 0..flap2_len {
+            let t = i as f32 / sr as f32;
+            let freq = 320.0 + t * 1600.0;
+            let env = 1.0 - (i as f32 / flap2_len as f32);
+            let val = ((t * freq * std::f32::consts::TAU).sin() * env * 14000.0) as i16;
+            flap2_samples.push(val);
+        }
+        let flap2_bytes = create_wav(sr, &flap2_samples);
 
         // Score tone: chime
         let score_len = (sr as f32 * 0.18) as usize;
@@ -186,6 +199,7 @@ impl AudioManager {
         let close_shave_sound = load_sound_from_bytes(&cs_bytes).await.ok();
 
         let flap_wav = Box::leak(flap_bytes.into_boxed_slice());
+        let flap2_wav = Box::leak(flap2_bytes.into_boxed_slice());
         let score_wav = Box::leak(score_bytes.into_boxed_slice());
         let hit_wav = Box::leak(hit_bytes.into_boxed_slice());
         let pup_wav = Box::leak(pup_bytes.into_boxed_slice());
@@ -202,6 +216,7 @@ impl AudioManager {
             golden_sound,
             close_shave_sound,
             flap_wav,
+            flap2_wav,
             score_wav,
             hit_wav,
             powerup_wav: pup_wav,
@@ -227,6 +242,19 @@ impl AudioManager {
         }
         #[cfg(target_os = "windows")]
         win_audio::play_wav(self.flap_wav);
+
+        #[cfg(not(target_os = "windows"))]
+        if let Some(snd) = &self.flap_sound {
+            play_sound_once(snd);
+        }
+    }
+
+    pub fn play_flap_2(&self) {
+        if self.muted {
+            return;
+        }
+        #[cfg(target_os = "windows")]
+        win_audio::play_wav(self.flap2_wav);
 
         #[cfg(not(target_os = "windows"))]
         if let Some(snd) = &self.flap_sound {
