@@ -9,11 +9,12 @@
   const BIRD_HEIGHT = 24;
 
   const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
 
   // Set logical resolution
   canvas.width = GAME_WIDTH;
   canvas.height = GAME_HEIGHT;
+  ctx.imageSmoothingEnabled = false;
 
   // ─── Difficulty Configurations ──────────────────────────────────────────────
   const DIFFICULTIES = [
@@ -76,9 +77,36 @@
   let screenShake = 0;
   let speedLines = [];
 
-  // ─── Popups & Particles ─────────────────────────────────────────────────────
-  let popups = [];
-  let particles = [];
+  // ─── Popups & Particles Object Pools (Zero-GC Optimization) ─────────────────
+  const MAX_POPUPS = 16;
+  const popupPool = new Array(MAX_POPUPS);
+  for (let i = 0; i < MAX_POPUPS; i++) {
+    popupPool[i] = { active: false, x: 0, y: 0, text: '', color: '#fff', life: 0, maxLife: 1.0 };
+  }
+  let nextPopupIdx = 0;
+
+  const MAX_PARTICLES = 128;
+  const particlePool = new Array(MAX_PARTICLES);
+  for (let i = 0; i < MAX_PARTICLES; i++) {
+    particlePool[i] = { active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, color: '#fff', size: 3 };
+  }
+  let nextParticleIdx = 0;
+
+  function spawnParticle(x, y, vx, vy, life, color, size) {
+    const p = particlePool[nextParticleIdx];
+    nextParticleIdx = (nextParticleIdx + 1) % MAX_PARTICLES;
+    p.active = true;
+    p.x = x;
+    p.y = y;
+    p.vx = vx;
+    p.vy = vy;
+    p.life = life;
+    p.maxLife = life;
+    p.color = color || '#fff';
+    p.size = size || 3;
+    return p;
+  }
+
   let weatherParticles = [];
   let stars = [];
 
@@ -120,16 +148,15 @@
 
         const skin = SKINS[this.skinIndex % SKINS.length];
         for (let i = 0; i < 3; i++) {
-          particles.push({
-            x: this.x + 5,
-            y: this.y + 15,
-            vx: -40 - Math.random() * 40,
-            vy: (Math.random() - 0.5) * 50,
-            life: 0.35,
-            maxLife: 0.35,
-            color: skin.belly,
-            size: 3 + Math.random() * 2,
-          });
+          spawnParticle(
+            this.x + 5,
+            this.y + 15,
+            -40 - Math.random() * 40,
+            (Math.random() - 0.5) * 50,
+            0.35,
+            skin.belly,
+            3 + Math.random() * 2
+          );
         }
       },
 
@@ -449,16 +476,15 @@
               window.soundEngine.playGolden();
               addPopup(bird1.x, bird1.y - 30, '+5 GOLDEN!', '#FFD700');
               for (let k = 0; k < 12; k++) {
-                particles.push({
-                  x: p.x + 26,
-                  y: p.gapY,
-                  vx: (Math.random() - 0.5) * 160,
-                  vy: (Math.random() - 0.5) * 160,
-                  life: 0.6,
-                  maxLife: 0.6,
-                  color: '#FFD700',
-                  size: 4 + Math.random() * 3,
-                });
+                spawnParticle(
+                  p.x + 26,
+                  p.gapY,
+                  (Math.random() - 0.5) * 160,
+                  (Math.random() - 0.5) * 160,
+                  0.6,
+                  '#FFD700',
+                  4 + Math.random() * 3
+                );
               }
             } else {
               window.soundEngine.playScore();
@@ -494,16 +520,15 @@
               addPopup(bird1.x, bird1.y - 35, '⚡ CLOSE SHAVE! +2', '#00E5FF');
 
               for (let k = 0; k < 8; k++) {
-                particles.push({
-                  x: bird1.x + BIRD_WIDTH,
-                  y: distTop < 14 ? birdTop : birdBot,
-                  vx: 50 + Math.random() * 80,
-                  vy: (Math.random() - 0.5) * 80,
-                  life: 0.4,
-                  maxLife: 0.4,
-                  color: '#00E5FF',
-                  size: 2.5,
-                });
+                spawnParticle(
+                  bird1.x + BIRD_WIDTH,
+                  distTop < 14 ? birdTop : birdBot,
+                  50 + Math.random() * 80,
+                  (Math.random() - 0.5) * 80,
+                  0.4,
+                  '#00E5FF',
+                  2.5
+                );
               }
             }
           }
@@ -690,12 +715,12 @@
     // Diagonal grass chevrons pattern
     ctx.strokeStyle = '#cbd070';
     ctx.lineWidth = 3;
+    ctx.beginPath();
     for (let x = -groundScroll; x < GAME_WIDTH + 24; x += 20) {
-      ctx.beginPath();
       ctx.moveTo(x, groundY + 22);
       ctx.lineTo(x - 8, groundY + 36);
-      ctx.stroke();
     }
+    ctx.stroke();
 
     // Top border line
     ctx.strokeStyle = '#543847';
@@ -707,6 +732,34 @@
   }
 
   // ─── Celestial Background (Day / Sunset / Night / Dawn) ────────────────────
+  const GRADIENT_CACHE = {};
+  function initGradients() {
+    let g = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+    g.addColorStop(0, '#4ec0ca');
+    g.addColorStop(1, '#a3e5eb');
+    GRADIENT_CACHE['Day'] = g;
+
+    g = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+    g.addColorStop(0, '#2C3E50');
+    g.addColorStop(0.4, '#E74C3C');
+    g.addColorStop(0.8, '#F39C12');
+    g.addColorStop(1, '#F1C40F');
+    GRADIENT_CACHE['Sunset'] = g;
+
+    g = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+    g.addColorStop(0, '#0B0C1E');
+    g.addColorStop(0.6, '#181E3B');
+    g.addColorStop(1, '#272F55');
+    GRADIENT_CACHE['Night'] = g;
+
+    g = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+    g.addColorStop(0, '#3F2B96');
+    g.addColorStop(0.5, '#A8C0FF');
+    g.addColorStop(1, '#FEE140');
+    GRADIENT_CACHE['Dawn'] = g;
+  }
+  initGradients();
+
   function initStars() {
     stars = [];
     for (let i = 0; i < 50; i++) {
@@ -727,14 +780,10 @@
       mode = ['Day', 'Sunset', 'Night', 'Dawn'][cycleIdx];
     }
 
-    const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+    ctx.fillStyle = GRADIENT_CACHE[mode] || GRADIENT_CACHE['Day'];
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     if (mode === 'Day') {
-      grad.addColorStop(0, '#4ec0ca');
-      grad.addColorStop(1, '#a3e5eb');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
       // Sun
       ctx.beginPath();
       ctx.arc(330, 90, 32, 0, Math.PI * 2);
@@ -744,25 +793,12 @@
       ctx.fill();
       ctx.shadowBlur = 0;
     } else if (mode === 'Sunset') {
-      grad.addColorStop(0, '#2C3E50');
-      grad.addColorStop(0.4, '#E74C3C');
-      grad.addColorStop(0.8, '#F39C12');
-      grad.addColorStop(1, '#F1C40F');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
       // Sinking Sun
       ctx.beginPath();
       ctx.arc(280, 220, 36, 0, Math.PI * 2);
       ctx.fillStyle = '#FF6B6B';
       ctx.fill();
     } else if (mode === 'Night') {
-      grad.addColorStop(0, '#0B0C1E');
-      grad.addColorStop(0.6, '#181E3B');
-      grad.addColorStop(1, '#272F55');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
       // Twinkling stars
       stars.forEach(s => {
         s.twinkle += dt * 3;
@@ -788,12 +824,6 @@
       ctx.fillStyle = '#0B0C1E';
       ctx.fill();
       ctx.restore();
-    } else if (mode === 'Dawn') {
-      grad.addColorStop(0, '#3F2B96');
-      grad.addColorStop(0.5, '#A8C0FF');
-      grad.addColorStop(1, '#FEE140');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     }
 
     // Parallax Clouds
@@ -803,14 +833,14 @@
   function drawParallaxClouds() {
     const y = 380;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.beginPath();
     for (let i = 0; i < 3; i++) {
       const cx = (i * 180 - cloudScroll) % (GAME_WIDTH + 180) - 60;
-      ctx.beginPath();
       ctx.ellipse(cx, y, 45, 20, 0, 0, Math.PI * 2);
       ctx.ellipse(cx + 25, y - 8, 35, 22, 0, 0, Math.PI * 2);
       ctx.ellipse(cx + 50, y, 40, 18, 0, 0, Math.PI * 2);
-      ctx.fill();
     }
+    ctx.fill();
   }
 
   // ─── Dynamic Weather Particle Simulation ───────────────────────────────────
@@ -835,126 +865,132 @@
     if (weather === 'Sunny') return;
 
     ctx.save();
-    weatherParticles.forEach(p => {
-      if (weather === 'Rain') {
+    if (weather === 'Rain') {
+      ctx.strokeStyle = 'rgba(180, 220, 255, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      weatherParticles.forEach(p => {
         p.vy = 420;
         p.vx = -60;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-
-        ctx.strokeStyle = 'rgba(180, 220, 255, 0.6)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
         ctx.moveTo(p.x, p.y);
         ctx.lineTo(p.x - 3, p.y + 12);
-        ctx.stroke();
-
-        // Splash on ground
         if (p.y >= GAME_HEIGHT - GROUND_HEIGHT) {
-          ctx.beginPath();
-          ctx.arc(p.x, GAME_HEIGHT - GROUND_HEIGHT, 3, 0, Math.PI);
-          ctx.stroke();
           p.y = -10;
           p.x = Math.random() * (GAME_WIDTH + 60);
         }
-      } else if (weather === 'Snow') {
+      });
+      ctx.stroke();
+    } else if (weather === 'Snow') {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.beginPath();
+      weatherParticles.forEach(p => {
         p.vy = 60 + Math.sin(p.angle) * 20;
         p.vx = Math.sin(p.angle) * 30;
         p.angle += dt * 3;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-        ctx.beginPath();
+        ctx.moveTo(p.x + p.size, p.y);
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-
         if (p.y >= GAME_HEIGHT - GROUND_HEIGHT) {
           p.y = -10;
           p.x = Math.random() * GAME_WIDTH;
         }
-      } else if (weather === 'Sakura') {
+      });
+      ctx.fill();
+    } else if (weather === 'Sakura') {
+      ctx.fillStyle = 'rgba(255, 183, 197, 0.85)';
+      ctx.beginPath();
+      weatherParticles.forEach(p => {
         p.vy = 45;
         p.vx = 40 + Math.sin(p.angle) * 30;
         p.angle += dt * 2.5;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-
-        ctx.fillStyle = 'rgba(255, 183, 197, 0.85)';
-        ctx.beginPath();
         ctx.ellipse(p.x, p.y, 4, 2.5, p.angle, 0, Math.PI * 2);
-        ctx.fill();
-
         if (p.y >= GAME_HEIGHT - GROUND_HEIGHT || p.x > GAME_WIDTH + 20) {
           p.y = -10;
           p.x = Math.random() * GAME_WIDTH;
         }
-      } else if (weather === 'Firefly') {
+      });
+      ctx.fill();
+    } else if (weather === 'Firefly') {
+      weatherParticles.forEach(p => {
         p.angle += dt * 2;
         p.x += Math.sin(p.angle) * 15 * dt;
         p.y += Math.cos(p.angle * 0.7) * 12 * dt;
-
         const glow = 0.4 + Math.sin(p.angle * 2) * 0.4;
         ctx.fillStyle = `rgba(255, 240, 100, ${glow})`;
-        ctx.shadowColor = '#FFEB3B';
-        ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-    });
+      });
+    }
     ctx.restore();
   }
 
-  // ─── Popups & Particle Effects ──────────────────────────────────────────────
+  // ─── Popups & Particle Effects (Batched & Zero-GC) ──────────────────────────
   function addPopup(x, y, text, color) {
-    popups.push({ x, y, text, color, life: 1.0, maxLife: 1.0 });
+    const p = popupPool[nextPopupIdx];
+    nextPopupIdx = (nextPopupIdx + 1) % MAX_POPUPS;
+    p.active = true;
+    p.x = x;
+    p.y = y;
+    p.text = text;
+    p.color = color || '#fff';
+    p.life = 1.0;
+    p.maxLife = 1.0;
   }
 
   function updateAndDrawPopups(dt) {
-    for (let i = popups.length - 1; i >= 0; i--) {
-      const p = popups[i];
-      p.life -= dt;
-      p.y -= dt * 35;
+    ctx.save();
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < MAX_POPUPS; i++) {
+      const p = popupPool[i];
+      if (!p.active) continue;
 
+      p.life -= dt;
+      if (p.life <= 0) {
+        p.active = false;
+        continue;
+      }
+
+      p.y -= dt * 35;
       const alpha = Math.max(0, p.life / p.maxLife);
-      ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.font = 'bold 15px Arial';
-      ctx.textAlign = 'center';
       ctx.fillStyle = '#000';
       ctx.fillText(p.text, p.x + 1, p.y + 1); // shadow
       ctx.fillStyle = p.color;
       ctx.fillText(p.text, p.x, p.y);
-      ctx.restore();
-
-      if (p.life <= 0) {
-        popups.splice(i, 1);
-      }
     }
+    ctx.restore();
   }
 
   function updateAndDrawParticles(dt) {
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
+    ctx.save();
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      const p = particlePool[i];
+      if (!p.active) continue;
+
       p.life -= dt;
+      if (p.life <= 0) {
+        p.active = false;
+        continue;
+      }
+
       p.x += p.vx * dt;
       p.y += p.vy * dt;
 
       const alpha = Math.max(0, p.life / p.maxLife);
-      ctx.save();
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
-
-      if (p.life <= 0) {
-        particles.splice(i, 1);
-      }
     }
+    ctx.restore();
   }
 
   // ─── Collisions & Hit Detection ─────────────────────────────────────────────
@@ -991,16 +1027,15 @@
         window.soundEngine.playHit();
         addPopup(bird1.x + 10, bird1.y - 20, 'P1 DOWN!', '#FF5252');
         for (let k = 0; k < 12; k++) {
-          particles.push({
-            x: bird1.x + BIRD_WIDTH / 2,
-            y: bird1.y + BIRD_HEIGHT / 2,
-            vx: (Math.random() - 0.5) * 120,
-            vy: (Math.random() - 0.5) * 120,
-            life: 0.5,
-            maxLife: 0.5,
-            color: SKINS[bird1.skinIndex % SKINS.length].body,
-            size: 3 + Math.random() * 3,
-          });
+          spawnParticle(
+            bird1.x + BIRD_WIDTH / 2,
+            bird1.y + BIRD_HEIGHT / 2,
+            (Math.random() - 0.5) * 120,
+            (Math.random() - 0.5) * 120,
+            0.5,
+            SKINS[bird1.skinIndex % SKINS.length].body,
+            3 + Math.random() * 3
+          );
         }
       }
 
@@ -1012,16 +1047,15 @@
         window.soundEngine.playHit();
         addPopup(bird2.x + 10, bird2.y - 20, 'P2 DOWN!', '#46A0FF');
         for (let k = 0; k < 12; k++) {
-          particles.push({
-            x: bird2.x + BIRD_WIDTH / 2,
-            y: bird2.y + BIRD_HEIGHT / 2,
-            vx: (Math.random() - 0.5) * 120,
-            vy: (Math.random() - 0.5) * 120,
-            life: 0.5,
-            maxLife: 0.5,
-            color: SKINS[bird2.skinIndex % SKINS.length].body,
-            size: 3 + Math.random() * 3,
-          });
+          spawnParticle(
+            bird2.x + BIRD_WIDTH / 2,
+            bird2.y + BIRD_HEIGHT / 2,
+            (Math.random() - 0.5) * 120,
+            (Math.random() - 0.5) * 120,
+            0.5,
+            SKINS[bird2.skinIndex % SKINS.length].body,
+            3 + Math.random() * 3
+          );
         }
       }
 
@@ -1036,16 +1070,15 @@
           screenShake = 10;
           addPopup(bird1.x, bird1.y, '💥 SHIELD SAVED YOU!', '#FF5252');
           for (let k = 0; k < 16; k++) {
-            particles.push({
-              x: bird1.x + BIRD_WIDTH / 2,
-              y: bird1.y + BIRD_HEIGHT / 2,
-              vx: (Math.random() - 0.5) * 180,
-              vy: (Math.random() - 0.5) * 180,
-              life: 0.5,
-              maxLife: 0.5,
-              color: '#46A0FF',
-              size: 3 + Math.random() * 3,
-            });
+            spawnParticle(
+              bird1.x + BIRD_WIDTH / 2,
+              bird1.y + BIRD_HEIGHT / 2,
+              (Math.random() - 0.5) * 180,
+              (Math.random() - 0.5) * 180,
+              0.5,
+              '#46A0FF',
+              3 + Math.random() * 3
+            );
           }
           return;
         }
@@ -1549,6 +1582,9 @@
 
   // Keyboard controls
   window.addEventListener('keydown', e => {
+    if (e.repeat && (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp' || e.code === 'KeyK' || e.code === 'Digit2' || e.code === 'Tab')) {
+      return;
+    }
     if (e.code === 'Space' || e.code === 'KeyW') {
       e.preventDefault();
       handleActionP1();
@@ -1594,7 +1630,7 @@
     } else {
       handleActionP1();
     }
-  });
+  }, { passive: false });
 
   function cycleDifficulty() {
     currentDiffIndex = (currentDiffIndex + 1) % DIFFICULTIES.length;

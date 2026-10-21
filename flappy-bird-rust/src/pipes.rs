@@ -35,7 +35,7 @@ pub struct PipeManager {
 impl PipeManager {
     pub fn new(gap: f32, speed_mult: f32) -> Self {
         let mut mgr = Self {
-            pipes: Vec::new(),
+            pipes: Vec::with_capacity(8),
             gap,
             speed_mult,
         };
@@ -45,7 +45,7 @@ impl PipeManager {
 
     pub fn reset(&mut self) -> Vec<(f32, f32, f32)> {
         self.pipes.clear();
-        let mut gaps = Vec::new();
+        let mut gaps = Vec::with_capacity(4);
         for i in 0..4 {
             let x = GAME_WIDTH + 100.0 + (i as f32) * PIPE_SPACING;
             let gap = self.spawn_pipe(x, 0);

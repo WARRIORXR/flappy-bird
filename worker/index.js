@@ -125,7 +125,23 @@ export default {
 
     // ─── Static Assets Fallback (Cloudflare Static Assets) ───────────────────
     if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
+      const response = await env.ASSETS.fetch(request);
+      if (response.ok && (
+        url.pathname.endsWith('.wasm') ||
+        url.pathname.endsWith('.png') ||
+        url.pathname.endsWith('.svg') ||
+        url.pathname.endsWith('.css') ||
+        url.pathname.endsWith('.js')
+      )) {
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set('Cache-Control', 'public, max-age=604800, immutable');
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders,
+        });
+      }
+      return response;
     }
 
     return new Response('Asset not found', { status: 404 });

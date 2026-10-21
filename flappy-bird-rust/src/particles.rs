@@ -31,12 +31,15 @@ pub struct ParticleSystem {
 impl ParticleSystem {
     pub fn new() -> Self {
         Self {
-            particles: Vec::new(),
-            shockwaves: Vec::new(),
+            particles: Vec::with_capacity(256),
+            shockwaves: Vec::with_capacity(16),
         }
     }
 
     pub fn add_trail(&mut self, x: f32, y: f32) {
+        if self.particles.len() >= 256 {
+            return;
+        }
         self.particles.push(Particle {
             x,
             y,
@@ -103,6 +106,9 @@ impl ParticleSystem {
     }
 
     pub fn add_shockwave(&mut self, x: f32, y: f32, color: Color, max_radius: f32) {
+        if self.shockwaves.len() >= 16 {
+            return;
+        }
         self.shockwaves.push(Shockwave {
             x,
             y,
